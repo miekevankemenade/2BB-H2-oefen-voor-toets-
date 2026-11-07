@@ -142,6 +142,12 @@ main.groot.werk .links:has(.bron-boven) svg.graf{max-height:calc(100vh - 140px);
 @media (max-width:860px){main.groot.werk{grid-template-columns:1fr}main.groot.werk svg.graf{max-height:none}}
 @media (max-width:860px){main.groot{grid-template-columns:1fr}main.groot svg.graf{max-height:none}}
 svg.graf .klik{cursor:crosshair}
+.as-wrap{position:relative;aspect-ratio:560/440;width:min(100%,640px,calc((100vh - 230px) * 560 / 440));width:min(100%,640px,calc((100dvh - 230px) * 560 / 440));container-type:inline-size;flex:none}
+.as-wrap svg.graf{display:block;width:100%;height:100%;max-width:none!important;max-height:none!important}
+input.asvak{position:absolute;width:9.5%;height:6.2%;min-height:0;padding:0 1px;font-size:2.7cqw;font-weight:600;text-align:center;border:2px solid var(--roze);border-radius:6px;background:#fff;color:var(--tekst);font-family:inherit}
+input.asvak:focus{outline:none;box-shadow:0 0 0 3px var(--roze-licht)}
+input.asvak.goed{border-color:var(--goed);background:#eaf8f1} input.asvak.fout{border-color:var(--fout);background:#fdeced}
+@media (max-width:860px){.as-wrap{width:100%}}
 .graf-uitleg{font-size:14px;color:var(--zacht);text-align:center;max-width:520px}
 video{width:100%;max-width:820px;border-radius:14px;background:#000;box-shadow:0 8px 30px rgba(94,6,150,.18)}
 .theorie-tekst{background:var(--cyaan-licht);border-radius:16px;padding:18px 20px;margin:12px 0}
@@ -490,6 +496,7 @@ function maakGrafiek(cfg, opties = {}){
     });
     svg._teken = teken; svg._wissel = wissel; svg._snap = [snx, sny]; teken();
   }
+  svg._X = X; svg._Y = Y; svg._W = W; svg._H = H; svg._as = [ax, ay];
   return svg;
 }
 
@@ -506,7 +513,7 @@ const D6c = 'WI/K/6 Meetkunde · coördinaten in het platte vlak';
 
 const komma = v => Number.isInteger(v) ? String(v) : v.toFixed(2).replace('.', ',');
 const G1 = {x: [0, 120], y: [0, 140], xs: 10, ys: 20, labTekstX: v => v > 110 ? null : String(v), lx: 'tijd in minuten', ly: 'afstand in km'};
-const G2leeg = {x: [0, 13], y: [0, 275], xs: 1, ys: 25, labTekstX: v => v > 12 ? null : String(v), labTekstY: v => v === 25 ? '25' : (v <= 250 ? '…' : null), lx: 'leeftijd in jaren', ly: '…… in cm'};
+const G2leeg = {x: [0, 13], y: [0, 275], xs: 1, ys: 25, labTekstX: v => v > 12 ? null : String(v), labTekstY: v => v === 25 ? '25' : null, lx: 'leeftijd in jaren', ly: '…… in cm'};
 const G2 = {x: [0, 13], y: [0, 275], xs: 1, ys: 25, snapX: 1, snapY: 25, labTekstX: v => v > 12 ? null : String(v), labTekstY: v => v > 250 ? null : String(v), lx: 'leeftijd in jaren', ly: 'hoogte in cm'};
 const G3leeg = {x: [0, 16], y: [0, 4], xs: 2, ys: .5, labTekstX: v => v <= 6 ? String(v) : (v <= 14 ? '…' : null), labTekstY: v => v === .5 ? '0,50' : v === 1 ? '1,-' : (v <= 3.5 ? '…' : null), lx: 'aantal minuten', ly: 'kosten in euro\'s'};
 const G3 = {x: [0, 16], y: [0, 4], xs: 2, ys: .5, snapX: 2, snapY: .1, labTekstX: v => v > 14 ? null : String(v), labTekstY: v => v > 3.5 ? null : komma(v), lx: 'aantal minuten', ly: 'kosten in euro\'s'};
@@ -586,8 +593,8 @@ const SECTIES = [
    hint: ['Lees af hoe ver de trein is na 30 minuten.', 'Lees af hoe ver de trein is na 90 minuten.', 'Trek die twee getallen van elkaar af.'], uitleg: ['Na 30 minuten: 40 km.', 'Na 90 minuten: 110 km.', '110 − 40 = 70', 'De trein legt 70 km af.'], fouten: {110: 'Alleen de afstand bij 90 minuten afgelezen', 150: 'Opgeteld in plaats van afgetrokken', 60: 'Tijd afgetrokken in plaats van afstand'}},
   {id: '1f', nr: '1', deel: 'f', ctx: 'c1', dom: D43, vraag: ['Hoe groot is de afstand tussen Den Haag en Eindhoven?'], type: 'num', ans: 130, eenheid: 'km',
    hint: ['Kijk naar het einde van de grafiek.', 'Daar is de trein in Eindhoven.'], uitleg: ['De grafiek stopt bij 110 minuten.', 'Daar is de afstand 130 km.', 'De afstand is 130 km.'], fouten: {110: 'Tijd afgelezen in plaats van afstand', 140: 'Hoogste getal op de as genomen'}},
-  {id: '2a', nr: '2', deel: 'a', ctx: 'c2', dom: D43t, vraag: ['Maak het assenstelsel af.', 'Gebruik stapgrootte 25.', 'Vul de getallen op de verticale as in.'], type: 'stappen', graf: () => maakGrafiek(G2leeg),
-   velden: [{tpl: '0 – 25 – {} – {} – {} – {} – {}', ans: [50, 75, 100, 125, 150]}, {tpl: '{} – {} – {} – {}', ans: [175, 200, 225, 250]}, {lab: 'Wat zet je bij de verticale as?', soort: 'keuze', opties: ['kies…', 'leeftijd', 'hoogte', 'jaren'], ans: 2}],
+  {id: '2a', nr: '2', deel: 'a', ctx: 'c2', dom: D43t, vraag: ['Maak het assenstelsel af.', 'Gebruik stapgrootte 25.', 'Vul in het assenstelsel de getallen op de verticale as in.'], type: 'stappen', graf: () => maakGrafiek(G2leeg),
+   velden: [{as: 'y', pos: [50, 75, 100, 125, 150, 175, 200, 225, 250], ans: [50, 75, 100, 125, 150, 175, 200, 225, 250]}, {lab: 'Wat zet je bij de verticale as?', soort: 'keuze', opties: ['kies…', 'leeftijd', 'hoogte', 'jaren'], ans: 2}],
    hint: ['Stapgrootte 25: er komt elke keer 25 bij.', '25 + 25 = 50', 'Op de verticale as staat wat je meet in centimeters.'], uitleg: ['0, 25, 50, 75, 100, 125', '150, 175, 200, 225, 250', 'Bij de verticale as zet je: hoogte in cm.']},
   {id: '2b', nr: '2', deel: 'b', ctx: 'c2', dom: D43t, vraag: ['Teken de grafiek bij de tabel.', 'Zet alle punten uit de tabel.', 'De punten worden vanzelf verbonden.', 'Verkeerd punt?', 'Klik er nog een keer op.'], type: 'grafiek', g: G2, pts: P2, volgorde: 'x', min: 6, bron: [T2],
    hint: ['Begin bij het punt (0, 0).', 'Bij 2 jaar hoort 50 cm: ga 2 naar rechts en dan omhoog tot 50.'], uitleg: ['Punten: (0, 0), (2, 50), (4, 75)', '(6, 100), (9, 175), (12, 250)', 'Verbind de punten met rechte lijnen.']},
@@ -839,6 +846,7 @@ function toonVraag(it){
   } else if (it.type === 'stappen'){
     const vak = (id, lab) => `<input class="inv vak" id="${id}" inputmode="decimal" autocomplete="off" aria-label="${esc(lab)}">`;
     inv.innerHTML = (it.begin ? `<div class="stap start">${fmtF(it.begin)}</div>` : '') + `<div class="stappen">${it.velden.map((v, k) => {
+      if (v.as) return '';
       if (v.tpl){ const d = v.tpl.split('{}'); return `<div class="stap formulestap">${d.map((t, j) => fmtF(t) + (j < d.length - 1 ? vak(`a${k}_${j}`, `Stap ${k + 1}, vakje ${j + 1}`) : '')).join('')}</div>`; }
       return `<div class="stap"><label class="lab" for="a${k}">${fmtF(v.lab)}</label>${v.soort === 'keuze'
        ? `<select id="a${k}">${v.opties.map((o, j) => `<option value="${j}">${esc(o)}</option>`).join('')}</select>`
@@ -862,6 +870,7 @@ function toonVraag(it){
       };
     }
   }
+  if (it.type === 'stappen' && it.velden.some(v => v.as)) zetAsVakken(it);
   herstelInvoer(it, s);
   $('#controleer').onclick = () => controleer(it);
   $('#hintKnop').onclick = () => toonHint(it);
@@ -870,6 +879,20 @@ function toonVraag(it){
   toonBerekeningen(it);
 }
 
+// invulvakjes direct op de as van het assenstelsel
+function zetAsVakken(it){
+  const svg = document.querySelector('#links svg.graf'); if (!svg) return;
+  const wrap = document.createElement('div'); wrap.className = 'as-wrap'; svg.replaceWith(wrap); wrap.appendChild(svg);
+  const [ax, ay] = svg._as, W = svg._W, H = svg._H;
+  it.velden.forEach((v, k) => { if (!v.as) return; v.pos.forEach((w, j) => {
+    const inp = document.createElement('input'); inp.className = 'asvak'; inp.id = `a${k}_${j}`; inp.inputMode = 'decimal'; inp.autocomplete = 'off';
+    inp.setAttribute('aria-label', `${v.as === 'y' ? 'Verticale' : 'Horizontale'} as, vakje ${j + 1}`);
+    if (v.as === 'y'){ inp.style.left = ((svg._X(ay) - 5) / W * 100) + '%'; inp.style.top = (svg._Y(w) / H * 100) + '%'; inp.style.transform = 'translate(-100%,-50%)'; }
+    else { inp.style.left = (svg._X(w) / W * 100) + '%'; inp.style.top = ((svg._Y(ax) + 15) / H * 100) + '%'; inp.style.transform = 'translate(-50%,-50%)'; }
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') controleer(it); });
+    wrap.appendChild(inp);
+  }); });
+}
 function herstelInvoer(it, s){
   const w = s.waarden || {};
   Object.entries(w).forEach(([id, v]) => { const e = document.getElementById(id); if (e) e.value = v; });
@@ -877,7 +900,7 @@ function herstelInvoer(it, s){
   if (s.hint){ const hv = $('#hintvak'); hv.classList.add('open'); hv.innerHTML = it.hint.slice(0, s.hint).map((h, k) => `<div><b>Hint ${k + 1}:</b> ${miniLees()}<br>${regels(h)}</div>`).join(''); }
 }
 function verzamel(it){
-  const w = {}; document.querySelectorAll('#invoer input, #invoer select').forEach(e => w[e.id] = e.value); return w;
+  const w = {}; document.querySelectorAll('#invoer input, #invoer select, #links input.asvak').forEach(e => w[e.id] = e.value); return w;
 }
 function toonStatus(it){
   const s = st(it.id); const fb = $('#feedback'); const pg = $('#pogingen');
@@ -887,7 +910,7 @@ function toonStatus(it){
     const p = puntenVan(s);
     fb.className = 'feedback goed';
     fb.innerHTML = `${miniLees()}Goed zo! Je krijgt ${p} ${p === 1 ? 'punt' : 'punten'}.<br>${it.uitleg.map(u => regels(u)).join('<br>')}`;
-    document.querySelectorAll('#invoer input, #invoer select').forEach(e => { e.disabled = true; });
+    document.querySelectorAll('#invoer input, #invoer select, #links input.asvak').forEach(e => { e.disabled = true; });
     $('#controleer').disabled = true; $('#hintKnop').disabled = true;
     const wk = $('#wisKeuze'); if (wk) wk.disabled = true;
   }
@@ -961,7 +984,7 @@ function controleer(it){
       if (!ok && !eerste && raw.trim() !== '') eerste = catVeld || (it.fouten && it.fouten[String(v)]) || (!isNaN(v) && Math.abs(v + ans) < 1e-9 && ans !== 0 ? 'Min-teken fout' : '');
       res.push([id, ok]); if (!ok) fout++; };
     it.velden.forEach((f, k) => {
-      if (f.tpl){ f.ans.forEach((a, j) => getal(`a${k}_${j}`, a, f.invul && j === 0 ? 'Verkeerd getal ingevuld in de formule' : '')); return; }
+      if (f.tpl || f.as){ f.ans.forEach((a, j) => getal(`a${k}_${j}`, a, f.invul && j === 0 ? 'Verkeerd getal ingevuld in de formule' : '')); return; }
       if (f.soort === 'keuze'){ const raw = w['a' + k]; const ok = +raw === f.ans; if (+raw === 0) geenKeuze++; else leeg = false; if (!ok && !eerste && +raw !== 0) eerste = 'Verkeerde keuze gemaakt'; res.push(['a' + k, ok]); if (!ok) fout++; }
       else getal('a' + k, f.ans);
     });
