@@ -21,6 +21,13 @@ In de app staan alleen de opdrachten uit het proefwerk: 1 t/m 8 en K9 t/m K11.
 - coördinaten en punten in een assenstelsel (K9, K10)
 - negatieve tijd (K11)
 
+**Oefentoets (tabblad Oefentoets):** 20 vragen uit de app, als proeftoets.
+- Geen hints en één poging per vraag.
+- De leerling ziet pas na het inleveren wat goed en fout was, met de uitleg.
+- Het cijfer van de oefentoets telt niet mee voor het cijfer van de opdrachten.
+- De uitslag komt bij jou binnen als app "… · oefentoets".
+- Met "Toets opnieuw maken" kan de leerling de toets nog een keer maken.
+
 Er zijn geen theoriefilmpjes, want het proefwerk heeft geen theorieblokken.
 
 **Punten:** 2 punten als het in één keer goed is; 1 punt bij de 2e poging of na een hint; 0 punten daarna.

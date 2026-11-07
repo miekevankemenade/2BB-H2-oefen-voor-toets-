@@ -37,6 +37,11 @@ header h1{font-size:18px;margin:0;font-weight:800;letter-spacing:.2px}
 .stip.goed1{background:#7cc9a3;border-color:#7cc9a3;color:#fff}
 .stip.goed0{background:#f3b6bb;border-color:#f3b6bb}
 .stip.bezig{border-color:var(--roze)}
+.stip.ingeleverd{background:var(--paars-licht);border-color:var(--paars);color:var(--paars)}
+.tab.toets{background:var(--roze)}.tab.toets.actief{background:var(--cyaan);color:var(--paars)}
+.toetsregel{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--lijn)}
+.toetsregel .tk{font-weight:800;width:1.4em}.toetsregel .tk.g{color:var(--goed)}.toetsregel .tk.f{color:var(--fout)}
+.toets-let{background:var(--roze-licht);border-radius:12px;padding:8px 12px;font-weight:600;color:var(--paars);margin:6px 0 10px}
 .stip.huidig{outline:3px solid var(--paars);outline-offset:1px}
 /* ---------- hoofdvlak ---------- */
 main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:0}
@@ -698,8 +703,14 @@ const SECTIES = [
    hint: ['Zoek 110 liter in de tabel.', 'Welke tijd hoort erbij?', 'Tel dat aantal minuten op bij 7:30 uur.'], uitleg: ['110 liter bij tijd = 4.', 'tijd = 4 is 4 minuten na 7:30 uur.', 'Het bad is om 7:34 uur vol.'], fouten: {'7:26': 'Positieve tijd als vóór 7:30 gelezen'}},
  ]},
 ];
+/* ---------- oefentoets: dezelfde vragen, maar in toetsmodus ---------- */
+const TOETS_IDS = ['1a', '1b', '1e', '2a', '2b', '2c', '3a', '3b', '3d', '4c', '4f', '5', '6c', '6d', '7b', '8a1', '8e', 'K9b', 'K10b', 'K11c'];
+(() => { const alle = SECTIES.flatMap(s => s.items);
+  SECTIES.push({id: 'toets', titel: 'Oefentoets', toets: true, items: TOETS_IDS.map(id => { const o = alle.find(i => i.id === id);
+    return Object.assign({}, o, {id: 'T' + id, toets: true, bron: o.bron && o.bron.map(b => typeof b === 'string' ? (TOETS_IDS.includes(b) ? 'T' + b : b) : b)}); })}); })();
 const ITEMS = []; SECTIES.forEach(s => s.items.forEach(it => { it.sectie = s.id; ITEMS.push(it); }));
-const VRAGEN = ITEMS.filter(i => !i.theorie);
+const VRAGEN = ITEMS.filter(i => !i.theorie && !i.toets);
+const TOETSVRAGEN = ITEMS.filter(i => i.toets);
 
 /* =========================================================
    TOESTAND
@@ -730,7 +741,7 @@ async function wolkNu(){
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') wolkNu(); });
 function st(id){ if (!S.items[id]) S.items[id] = {pogingen: [], hint: 0, opgelost: false, punten: null, tijd: 0, gezien: null, laatste: null, hulpGetoond: false, invoer: null}; return S.items[id]; }
-function puntenVan(s){ if (!s.opgelost) return 0; const fouten = s.pogingen.filter(p => !p.goed).length; if (fouten === 0 && !s.hint) return 2; if (fouten <= 1) return 1; return 0; }
+function puntenVan(s){ if (!s.opgelost) return 0; if ('toetsGoed' in s) return s.toetsGoed ? 2 : 0; const fouten = s.pogingen.filter(p => !p.goed).length; if (fouten === 0 && !s.hint) return 2; if (fouten <= 1) return 1; return 0; }
 
 /* =========================================================
    WEERGAVE
@@ -741,12 +752,13 @@ function render(){
   if (!S.gestart) return startScherm();
   if (!S.code && db()){ S.code = nieuweCode(); bewaar(); }
   if (S.klaar) return eindScherm();
+  if (S.toetsScherm) return toetsScherm();
   const it = ITEMS[S.huidig];
   const sec = SECTIES.find(s => s.id === it.sectie);
   app.innerHTML = `
   <header>
     <h1>H2 Grafieken en formules</h1>
-    <nav class="tabs" aria-label="Paragrafen">${SECTIES.map(s => `<button class="tab ${s.id === sec.id ? 'actief' : ''}" data-sec="${s.id}">${esc(s.titel)}</button>`).join('')}</nav>
+    <nav class="tabs" aria-label="Paragrafen">${SECTIES.map(s => `<button class="tab ${s.toets ? 'toets' : ''} ${s.id === sec.id ? 'actief' : ''}" data-sec="${s.id}">${esc(s.titel)}</button>`).join('')}</nav>
     <div class="kop-rechts"><button class="knop-klein rm-knop" id="rmOpen" aria-pressed="${!$('#rm').hidden}">🧮 Rekenmachine</button><span class="naam">${esc(S.naam)}</span>${S.code ? `<button class="knop-klein" id="codeKnop" style="background:rgba(255,255,255,.15)" title="Jouw code om later verder te gaan">Code: ${esc(S.code)}</button><span id="wolk" style="font-size:12px;opacity:.85">${esc(wolkStatus)}</span>` : ''}<button class="knop-klein" id="naarEind">Afronden</button></div>
   </header>
   <div>
@@ -754,7 +766,7 @@ function render(){
       const idx = ITEMS.indexOf(i);
       if (i.theorie) return `<button class="stip theorie ${idx === S.huidig ? 'huidig' : ''}" data-i="${idx}" title="Theorie: ${esc(i.titel)}">▶ Theorie</button>`;
       const s = S.items[i.id]; let k = '';
-      if (s && s.opgelost) k = 'goed' + puntenVan(s); else if (s && s.pogingen.length) k = 'bezig';
+      if (s && s.opgelost) k = (i.toets && !S.toetsKlaar) ? 'ingeleverd' : 'goed' + puntenVan(s); else if (s && s.pogingen.length) k = 'bezig';
       return `<button class="stip ${k} ${idx === S.huidig ? 'huidig' : ''}" data-i="${idx}" title="Opdracht ${esc(i.nr)} ${esc(i.deel)}">${esc(i.nr)}${esc(i.deel ? ' ' + i.deel : '')}</button>`;
     }).join('')}</div>
   </div>
@@ -762,14 +774,14 @@ function render(){
   <footer>
     <button class="knop licht" id="vorige" ${S.huidig === 0 ? 'disabled' : ''}>← Vorige</button>
     <span class="spacer"></span>
-    <span class="voortgang">${VRAGEN.filter(v => S.items[v.id] && S.items[v.id].opgelost).length} van ${VRAGEN.length} opdrachten af</span>
+    <span class="voortgang">${it.toets ? `${TOETSVRAGEN.filter(v => S.items[v.id] && S.items[v.id].opgelost).length} van ${TOETSVRAGEN.length} toetsvragen gemaakt` : `${VRAGEN.filter(v => S.items[v.id] && S.items[v.id].opgelost).length} van ${VRAGEN.length} opdrachten af`}</span>
     <span class="spacer"></span>
-    <button class="knop paars" id="volgende">${S.huidig === ITEMS.length - 1 ? 'Naar resultaten →' : (it.theorie ? 'Naar de opdracht →' : 'Volgende / overslaan →')}</button>
+    <button class="knop paars" id="volgende">${it.toets && it === TOETSVRAGEN[TOETSVRAGEN.length - 1] ? (S.toetsKlaar ? 'Naar de uitslag →' : 'Toets inleveren →') : S.huidig === ITEMS.length - 1 ? 'Naar resultaten →' : (it.theorie ? 'Naar de opdracht →' : 'Volgende / overslaan →')}</button>
   </footer>`;
   app.querySelectorAll('.tab').forEach(b => b.onclick = () => { const s = SECTIES.find(x => x.id === b.dataset.sec); ga(ITEMS.indexOf(s.items[0])); });
   app.querySelectorAll('.stip').forEach(b => b.onclick = () => ga(+b.dataset.i));
   $('#vorige').onclick = () => ga(S.huidig - 1);
-  $('#volgende').onclick = () => S.huidig === ITEMS.length - 1 ? afronden() : ga(S.huidig + 1);
+  $('#volgende').onclick = () => it.toets && it === TOETSVRAGEN[TOETSVRAGEN.length - 1] ? toetsInleveren() : S.huidig === ITEMS.length - 1 ? afronden() : ga(S.huidig + 1);
   $('#naarEind').onclick = afronden;
   $('#rmOpen').onclick = () => rmToggle();
   const ck = $('#codeKnop'); if (ck) ck.onclick = () => toonCode(false);
@@ -802,6 +814,7 @@ function toonVraag(it){
      ${leesKnoppen()}
      <div class="blok">${zinnen(ctx.intro)}</div>
      <div class="witregel"></div>
+     ${it.toets && !S.toetsKlaar ? '<div class="toets-let">Oefentoets: je hebt één poging en er zijn geen hints.</div>' : ''}
      <div class="blok vraag">${zinnen(it.vraag)}</div>
      <div id="invoer"></div>
      <div class="knoppen">
@@ -819,8 +832,10 @@ function toonVraag(it){
   $('#main').classList.toggle('werk', it.type === 'grafiek');
   if (it.type === 'grafiek'){
     s.invoer = s.invoer || [];
-    const svg = maakGrafiek(it.g, {interactief: true, punt: () => s.invoer, slot: () => s.opgelost, bijWijziging: bewaar, lijnen: it.vast || [], volgorde: it.volgorde,
-      kleurPunt: (x, y) => s.opgelost ? '#16965A' : '#5E0696'});
+    const toetsFout = it.toets && S.toetsKlaar && s.opgelost && !s.toetsGoed;
+    const svg = maakGrafiek(it.g, {interactief: true, punt: () => s.invoer, slot: () => s.opgelost, bijWijziging: bewaar, volgorde: it.volgorde,
+      lijnen: (it.vast || []).concat(toetsFout ? [it.pts ? {pts: it.pts, kleur: '#16965A'} : {f: it.f, kleur: '#16965A'}] : []),
+      kleurPunt: (x, y) => s.opgelost && (!it.toets || (S.toetsKlaar && s.toetsGoed)) ? '#16965A' : '#5E0696'});
     links.appendChild(svg);
     links.insertAdjacentHTML('beforeend', `<div class="graf-uitleg">Klik op het rooster om een punt te zetten.<br>Klik er nog een keer op om het weg te halen.</div>
       <div class="graf-uitleg" id="puntMelding" role="status"></div>
@@ -874,6 +889,7 @@ function toonVraag(it){
   herstelInvoer(it, s);
   $('#controleer').onclick = () => controleer(it);
   $('#hintKnop').onclick = () => toonHint(it);
+  if (it.toets){ $('#hintKnop').hidden = true; $('#controleer').textContent = 'Antwoord inleveren'; }
   inv.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') controleer(it); }));
   toonStatus(it);
   toonBerekeningen(it);
@@ -906,6 +922,15 @@ function toonStatus(it){
   const s = st(it.id); const fb = $('#feedback'); const pg = $('#pogingen');
   const n = s.pogingen.length;
   pg.textContent = n ? `Pogingen: ${n}${s.hint ? ' · hint gebruikt' : ''}` : '';
+  if (s.opgelost && it.toets){
+    if (!S.toetsKlaar){ fb.className = 'feedback info'; fb.innerHTML = 'Je antwoord is opgeslagen.<br>Ga door naar de volgende vraag.'; }
+    else if (s.toetsGoed){ fb.className = 'feedback goed'; fb.innerHTML = `${miniLees()}Goed! Je krijgt 2 punten.<br>${it.uitleg.map(u => regels(u)).join('<br>')}`; }
+    else { fb.className = 'feedback fout'; fb.innerHTML = `${miniLees()}Dit was niet goed. 0 punten.<br>Zo moest het:<br>${it.uitleg.map(u => regels(u)).join('<br>')}${it.type === 'grafiek' ? '<br>De goede grafiek is groen.' : ''}`; }
+    pg.textContent = '';
+    document.querySelectorAll('#invoer input, #invoer select, #links input.asvak').forEach(e => { e.disabled = true; });
+    $('#controleer').disabled = true;
+    return;
+  }
   if (s.opgelost){
     const p = puntenVan(s);
     fb.className = 'feedback goed';
@@ -1044,6 +1069,12 @@ function controleer(it){
   const fb = $('#feedback');
   if (leeg){ fb.className = 'feedback info'; fb.textContent = 'Vul eerst een antwoord in.'; return; }
   if (schrijf){ fb.className = 'feedback info'; fb.innerHTML = `${fmtF(schrijf)}<br><span style="font-weight:500">Dit telt niet als fout. Pas het aan en klik opnieuw op Controleer.</span>`; return; }
+  if (it.toets){
+    const t = nu(); s.pogingen.push({goed, cat, ms: t - (s.laatste || t), keuze: it.type === 'mk' ? (s.keuze || []).slice() : undefined, hint: 0});
+    s.tijd = t - s.gezien; s.opgelost = true; s.toetsGoed = goed; s.punten = goed ? 2 : 0; bewaar();
+    document.querySelectorAll('#main input.goed, #main input.fout, #main select.goed, #main select.fout, #main .optie.goed, #main .optie.fout').forEach(e => e.classList.remove('goed', 'fout'));
+    toonStatus(it); updateStrook(); if (it.type === 'grafiek') document.querySelector('svg.graf')._teken(); return;
+  }
   const t = nu(); const dt = t - (s.laatste || t); s.laatste = t;
   s.pogingen.push({goed, cat, ms: dt, keuze: it.type === 'mk' ? (s.keuze || []).slice() : undefined, hint: s.hint});
   s.tijd = t - s.gezien;
@@ -1058,9 +1089,9 @@ function controleer(it){
 }
 function updateStrook(){
   const it = ITEMS[S.huidig]; const b = document.querySelector(`.stip[data-i="${S.huidig}"]`); if (!b) return;
-  const s = S.items[it.id]; b.classList.remove('goed0', 'goed1', 'goed2', 'bezig');
-  if (s.opgelost) b.classList.add('goed' + puntenVan(s)); else if (s.pogingen.length) b.classList.add('bezig');
-  const v = document.querySelector('.voortgang'); if (v) v.textContent = `${VRAGEN.filter(x => S.items[x.id] && S.items[x.id].opgelost).length} van ${VRAGEN.length} opdrachten af`;
+  const s = S.items[it.id]; b.classList.remove('goed0', 'goed1', 'goed2', 'bezig', 'ingeleverd');
+  if (s.opgelost) b.classList.add(it.toets && !S.toetsKlaar ? 'ingeleverd' : 'goed' + puntenVan(s)); else if (s.pogingen.length) b.classList.add('bezig');
+  const v = document.querySelector('.voortgang'); if (v && it.toets) v.textContent = `${TOETSVRAGEN.filter(x => S.items[x.id] && S.items[x.id].opgelost).length} van ${TOETSVRAGEN.length} toetsvragen gemaakt`; else if (v) v.textContent = `${VRAGEN.filter(x => S.items[x.id] && S.items[x.id].opgelost).length} van ${VRAGEN.length} opdrachten af`;
 }
 function toonHint(it){
   const s = st(it.id); if (s.opgelost) return;
@@ -1090,6 +1121,7 @@ function startScherm(){
     <span class="label-domein">VMBO Basis · 2BB · Hoofdstuk 2 Grafieken en formules</span>
     <h2>H2 Grafieken – oefenen voor de toets</h2>
     <p>In deze app oefen je met de opdrachten van de toets:<br>• grafieken aflezen en vergelijken<br>• een assenstelsel afmaken en een grafiek tekenen<br>• tabellen invullen met een formule<br>• punten in een assenstelsel</p>
+    <p>Klaar met oefenen?<br>Maak dan de <b>Oefentoets</b>: 20 vragen, zonder hints en met één poging.</p>
     ${terug ? `<div class="analyse"><b>Welkom terug, ${esc(S.naam)}!</b><br>Je hebt al ${VRAGEN.filter(v => S.items[v.id] && S.items[v.id].opgelost).length} opdrachten af.${S.code ? `<br>Jouw code: <b class="code">${esc(S.code)}</b>` : ''}
       <div class="knoppen"><button class="knop hoofd" id="verderHier">Verder gaan</button><button class="knop licht" id="andere">Ik ben iemand anders</button></div></div>` : ''}
     <div class="startkeuze" ${terug ? 'hidden' : ''} id="startkeuze">
@@ -1192,6 +1224,53 @@ Gokkans: ${A.gok}
 Foutenanalyse:
 ${A.regels.map(r => `- ${r.naam}: ${r.tekst}`).join('\n')}
 Korte samenvatting: ${A.tip}`;
+}
+/* ---------- oefentoets inleveren en uitslag ---------- */
+function toetsInleveren(){
+  const open = TOETSVRAGEN.filter(v => !(S.items[v.id] && S.items[v.id].opgelost)).length;
+  if (!S.toetsKlaar && open && !S.toetsBevestig){ S.toetsBevestig = true;
+    const fb = $('#feedback'); fb.className = 'feedback info'; fb.innerHTML = `Je hebt nog ${open} ${open === 1 ? 'vraag' : 'vragen'} niet gemaakt.<br>Klik nog een keer op <b>Toets inleveren</b> als je toch wilt inleveren.`; return; }
+  S.toetsBevestig = false; S.toetsKlaar = true; S.toetsScherm = true; bewaar(); render(); window.scrollTo(0, 0);
+}
+function toetsScherm(){
+  const cfg = window.APP_CONFIG || {};
+  const behaald = TOETSVRAGEN.reduce((a, v) => a + (S.items[v.id] ? puntenVan(S.items[v.id]) : 0), 0), totaal = TOETSVRAGEN.length * 2;
+  const cijfer = Math.min(10, Math.max(1, Math.round(((behaald / totaal) * 9 + 1) * 10) / 10));
+  const naam = v => `Vraag ${v.nr}${v.deel ? v.deel.replace(/\s+/g, '') : ''}`;
+  const regelsT = TOETSVRAGEN.map(v => { const s = S.items[v.id]; return {v, s, goed: !!(s && s.toetsGoed), gemaakt: !!(s && s.opgelost)}; });
+  const txt = `Leerling: ${S.naam}${S.klas ? ' (' + S.klas + ')' : ''}\nOefentoets: ${cfg.MODULE || ''}\nCijfer: ${cijfer.toFixed(1).replace('.', ',')} (Score: ${behaald}/${totaal})\n` + regelsT.map(r => `- ${naam(r.v)}: ${r.goed ? 'Goed' : r.gemaakt ? 'Fout' : 'Niet gemaakt'}`).join('\n');
+  app.innerHTML = `<div class="scherm" style="grid-row:1/-1;overflow:auto">
+    <span class="label-domein">Uitslag oefentoets · ${esc(cfg.MODULE || '')}</span>
+    <h2>Je oefentoets is nagekeken, ${esc(S.naam)}!</h2>
+    <div class="tegels">
+      <div class="tegel"><div class="k">Cijfer</div><div class="cijfer">${cijfer.toFixed(1).replace('.', ',')}</div></div>
+      <div class="tegel"><div class="k">Punten</div><div class="w">${behaald} / ${totaal}</div></div>
+      <div class="tegel"><div class="k">Goed</div><div class="w">${regelsT.filter(r => r.goed).length} / ${regelsT.length}</div></div>
+    </div>
+    <div class="analyse"><b>Per vraag</b><br>Klik op een vraag om te zien hoe het moest.
+      ${regelsT.map(r => `<div class="toetsregel"><span class="tk ${r.goed ? 'g' : 'f'}">${r.goed ? '✓' : '✗'}</span><button class="knop-tekst" data-ga="${esc(r.v.id)}">${esc(naam(r.v))}</button><span>${r.goed ? 'goed' : r.gemaakt ? 'fout' : 'niet gemaakt'}</span></div>`).join('')}
+    </div>
+    <div class="knoppen">
+      <button class="knop hoofd" id="opnieuw">Toets opnieuw maken</button>
+      <button class="knop licht" id="terugT">← Terug naar de opdrachten</button>
+    </div>
+    <div class="status" id="dbStatus"></div>
+  </div>`;
+  app.querySelectorAll('[data-ga]').forEach(b => b.onclick = () => { S.toetsScherm = false; ga(ITEMS.findIndex(x => x.id === b.dataset.ga)); });
+  $('#terugT').onclick = () => { S.toetsScherm = false; ga(0); };
+  $('#opnieuw').onclick = () => { TOETSVRAGEN.forEach(v => delete S.items[v.id]); S.toetsKlaar = false; S.toetsScherm = false; S.toetsOpgeslagen = null; ga(ITEMS.indexOf(TOETSVRAGEN[0])); };
+  // één keer per poging opslaan bij de docent
+  const el = $('#dbStatus');
+  const sleutel = S.start + '|' + TOETSVRAGEN.map(v => (S.items[v.id] || {}).pogingen ? S.items[v.id].pogingen.length : 0).join('');
+  if (S.toetsOpgeslagen === sleutel){ el.style.color = 'var(--goed)'; el.textContent = 'Je uitslag is opgeslagen bij je docent.'; return; }
+  if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || !window.supabase) return;
+  (async () => { try {
+    const d = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+    const {error} = await d.from(cfg.TABEL || 'resultaten').insert({leerling: S.naam, klas: S.klas || null, module: (cfg.MODULE || '') + ' · oefentoets', cijfer, score: behaald, totaal, gokkans: null,
+      samenvatting: `Oefentoets: ${regelsT.filter(r => r.goed).length} van ${regelsT.length} goed.`, export_tekst: txt,
+      details: {vragen: regelsT.map(r => ({id: r.v.id, goed: r.goed, gemaakt: r.gemaakt, fout: r.s && r.s.pogingen[0] ? r.s.pogingen[0].cat : null}))}, sessie_start: S.start, code: S.code || null});
+    if (error) throw error; S.toetsOpgeslagen = sleutel; bewaar(); el.style.color = 'var(--goed)'; el.textContent = 'Je uitslag is opgeslagen bij je docent.';
+  } catch (e) { el.style.color = 'var(--fout)'; el.textContent = 'Opslaan bij je docent is niet gelukt.'; } })();
 }
 function afronden(){ S.klaar = true; bewaar(); render(); }
 
