@@ -153,6 +153,12 @@ input.asvak{position:absolute;width:9.5%;height:6.2%;min-height:0;padding:0 1px;
 input.asvak:focus{outline:none;box-shadow:0 0 0 3px var(--roze-licht)}
 input.asvak.goed{border-color:var(--goed);background:#eaf8f1} input.asvak.fout{border-color:var(--fout);background:#fdeced}
 @media (max-width:860px){.as-wrap{width:100%}}
+#puntMelding{min-height:2.9em;display:flex;align-items:center;justify-content:center}
+.graf-knoppen{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.knop.gum{display:inline-flex;align-items:center;gap:6px}
+.knop.gum[aria-pressed="true"]{background:var(--roze);border-color:var(--roze);color:#fff}
+.knop.gum[aria-pressed="true"] svg path.vul{fill:#fff}
+svg.graf.gum-aan{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24'%3E%3Cpath d='M16.2 3.6a2 2 0 0 1 2.8 0l3.4 3.4a2 2 0 0 1 0 2.8L12 20.2H7.4L2.6 15.4a2 2 0 0 1 0-2.8z' fill='%23E924D5' stroke='%235E0696' stroke-width='1.2'/%3E%3C/svg%3E") 4 22,pointer}
 .graf-uitleg{font-size:14px;color:var(--zacht);text-align:center;max-width:520px}
 video{width:100%;max-width:820px;border-radius:14px;background:#000;box-shadow:0 8px 30px rgba(94,6,150,.18)}
 .theorie-tekst{background:var(--cyaan-licht);border-radius:16px;padding:18px 20px;margin:12px 0}
@@ -471,7 +477,7 @@ function maakGrafiek(cfg, opties = {}){
       const r = spook.querySelector('rect'); r.setAttribute('display', 'none'); r.setAttribute('x', bx); r.setAttribute('y', by); r.setAttribute('width', bw); r.setAttribute('height', 28);
       t.setAttribute('x', bx + 7); t.setAttribute('y', by + 19);
     };
-    vang.addEventListener('pointermove', ev => toonSpook(naarPunt(ev)));
+    vang.addEventListener('pointermove', ev => toonSpook(opties.gum && opties.gum() ? null : naarPunt(ev)));
     vang.addEventListener('pointerleave', () => toonSpook(null));
     const teken = () => {
       laag.innerHTML = '';
@@ -492,12 +498,15 @@ function maakGrafiek(cfg, opties = {}){
     };
     const wissel = (px, py) => {
       const pts = opties.punt(); const i = pts.findIndex(p => p[0] === px && p[1] === py);
-      if (i >= 0) pts.splice(i, 1); else pts.push([px, py]);
+      const gum = opties.gum && opties.gum(), meld = opties.melding || (() => {});
+      if (gum){ if (i < 0) return meld('Klik met de gum op een punt om het weg te halen.'); pts.splice(i, 1); meld('Punt weggehaald.'); }
+      else if (opties.gum){ if (i >= 0) return meld('Dit punt staat er al. Wil je het weghalen? Klik eerst op de gum.'); pts.push([px, py]); meld(''); }
+      else { if (i >= 0) pts.splice(i, 1); else pts.push([px, py]); }
       teken(); opties.bijWijziging && opties.bijWijziging();
     };
     vang.addEventListener('click', ev => {
       if (opties.slot && opties.slot()) return;
-      const p = naarPunt(ev); if (!p) return; wissel(p[0], p[1]); toonSpook(p);
+      const p = naarPunt(ev); if (!p) return; wissel(p[0], p[1]); toonSpook(opties.gum && opties.gum() ? null : p);
     });
     svg._teken = teken; svg._wissel = wissel; svg._snap = [snx, sny]; teken();
   }
@@ -601,7 +610,7 @@ const SECTIES = [
   {id: '2a', nr: '2', deel: 'a', ctx: 'c2', dom: D43t, vraag: ['Maak het assenstelsel af.', 'Gebruik stapgrootte 25.', 'Vul in het assenstelsel de getallen op de verticale as in.'], type: 'stappen', graf: () => maakGrafiek(G2leeg),
    velden: [{as: 'y', pos: [50, 75, 100, 125, 150, 175, 200, 225, 250], ans: [50, 75, 100, 125, 150, 175, 200, 225, 250]}, {lab: 'Wat zet je bij de verticale as?', soort: 'keuze', opties: ['kies…', 'leeftijd', 'hoogte', 'jaren'], ans: 2}],
    hint: ['Stapgrootte 25: er komt elke keer 25 bij.', '25 + 25 = 50', 'Op de verticale as staat wat je meet in centimeters.'], uitleg: ['0, 25, 50, 75, 100, 125', '150, 175, 200, 225, 250', 'Bij de verticale as zet je: hoogte in cm.']},
-  {id: '2b', nr: '2', deel: 'b', ctx: 'c2', dom: D43t, vraag: ['Teken de grafiek bij de tabel.', 'Zet alle punten uit de tabel.', 'De punten worden vanzelf verbonden.', 'Verkeerd punt?', 'Klik er nog een keer op.'], type: 'grafiek', g: G2, pts: P2, volgorde: 'x', min: 6, bron: [T2],
+  {id: '2b', nr: '2', deel: 'b', ctx: 'c2', dom: D43t, vraag: ['Teken de grafiek bij de tabel.', 'Zet alle punten uit de tabel.', 'De punten worden vanzelf verbonden.', 'Verkeerd punt?', 'Gebruik de gum.'], type: 'grafiek', g: G2, pts: P2, volgorde: 'x', min: 6, bron: [T2],
    hint: ['Begin bij het punt (0, 0).', 'Bij 2 jaar hoort 50 cm: ga 2 naar rechts en dan omhoog tot 50.'], uitleg: ['Punten: (0, 0), (2, 50), (4, 75)', '(6, 100), (9, 175), (12, 250)', 'Verbind de punten met rechte lijnen.']},
   {id: '2c', nr: '2', deel: 'c', ctx: 'c2', dom: D43, vraag: ['Fleur is zelf 150 cm lang.', 'Na hoeveel jaar is de spar ook 150 cm hoog?'], type: 'num', ans: 8, eenheid: 'jaar', graf: graf2,
    hint: ['Zoek 150 op de verticale as.', 'Ga naar rechts tot je de grafiek raakt.', 'Ga dan recht naar beneden.'], uitleg: ['150 cm ligt tussen 100 cm (6 jaar) en 175 cm (9 jaar).', 'Lees af bij 150: je komt uit bij 8 jaar.', 'Na 8 jaar is de spar 150 cm.'], fouten: {7: 'Afleesfout', 9: 'Afleesfout'}},
@@ -615,7 +624,7 @@ const SECTIES = [
   {id: '3c', nr: '3', deel: 'c', ctx: 'c3', dom: D43t, vraag: ['Maak het assenstelsel af.', 'Vul de getallen op de assen in.'], type: 'stappen', graf: () => maakGrafiek(G3leeg),
    velden: [{tpl: 'Horizontaal:  0 – 2 – 4 – 6 – {} – {} – {} – {}', ans: [8, 10, 12, 14]}, {tpl: 'Verticaal:  0 – 0,50 – 1 – {} – {} – {} – {} – {}', ans: [1.5, 2, 2.5, 3, 3.5]}],
    hint: ['Horizontaal komt er elke keer 2 bij.', 'Verticaal komt er elke keer 0,50 bij.', '1 + 0,50 = 1,50'], uitleg: ['Horizontaal: 8, 10, 12, 14', 'Verticaal: 1,50, 2, 2,50, 3, 3,50']},
-  {id: '3d', nr: '3', deel: 'd', ctx: 'c3', dom: D43t, vraag: ['Teken de grafiek bij de tabel van Noah.', 'Klik op minstens 3 punten.', 'Verkeerd punt?', 'Klik er nog een keer op.'], type: 'grafiek', g: G3, f: fNoah, min: 3, bron: ['3b'],
+  {id: '3d', nr: '3', deel: 'd', ctx: 'c3', dom: D43t, vraag: ['Teken de grafiek bij de tabel van Noah.', 'Klik op minstens 3 punten.', 'Verkeerd punt?', 'Gebruik de gum.'], type: 'grafiek', g: G3, f: fNoah, min: 3, bron: ['3b'],
    hint: ['Gebruik de punten uit de tabel, bijvoorbeeld (0; 0,80).', 'Bij 4 minuten hoort 1,40.'], uitleg: ['Punt (0; 0,80)', 'Punt (6; 1,70)', 'Punt (14; 2,90)', 'Trek een rechte lijn door de punten.']},
   {id: '3e', nr: '3', deel: 'e', ctx: 'c3L', dom: D45, vraag: ['Vul de tabel voor Lina in.'], type: 'tabel', kop: ['aantal minuten', 'kosten in euro\'s'], xs: [0, 2, 4, 6, 8, 10, 12, 14], ans: [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5],
    hint: ['Vul het aantal minuten in de formule in.', '2 × 0,25 = …'], uitleg: ['0 × 0,25 = 0', '2 × 0,25 = 0,50', '4 × 0,25 = 1,00', 'Elke keer 0,50 erbij, tot 3,50.']},
@@ -643,7 +652,7 @@ const SECTIES = [
   {id: '6a', nr: '6', deel: 'a', ctx: 'c6', dom: D43t, vraag: ['Maak het assenstelsel af.', 'Vul de getallen op de assen in.'], type: 'stappen', graf: () => maakGrafiek(G6leeg),
    velden: [{tpl: 'Horizontaal:  0 – 15 – 30 – {} – {} – {} – {}', ans: [45, 60, 75, 90]}, {tpl: 'Verticaal:  0 – 1000 – 2000 – {} – {} – {} – {}', ans: [3000, 4000, 5000, 6000]}, {lab: 'Wat zet je bij de verticale as?', soort: 'keuze', opties: ['kies…', 'aantal minuten', 'aantal liters', 'tijd in uren'], ans: 2}],
    hint: ['Horizontaal komt er elke keer 15 bij.', 'Verticaal komt er elke keer 1000 bij.', 'Op de verticale as staat hoeveel water er in het zwembad zit.'], uitleg: ['Horizontaal: 45, 60, 75, 90', 'Verticaal: 3000, 4000, 5000, 6000', 'Bij de verticale as zet je: aantal liters.']},
-  {id: '6b', nr: '6', deel: 'b', ctx: 'c6', dom: D43t, vraag: ['Teken de grafiek bij de tabel.', 'Zet alle punten uit de tabel.', 'De punten worden vanzelf verbonden.', 'Verkeerd punt?', 'Klik er nog een keer op.'], type: 'grafiek', g: G6, pts: P6, volgorde: 'x', min: 7, bron: [T6],
+  {id: '6b', nr: '6', deel: 'b', ctx: 'c6', dom: D43t, vraag: ['Teken de grafiek bij de tabel.', 'Zet alle punten uit de tabel.', 'De punten worden vanzelf verbonden.', 'Verkeerd punt?', 'Gebruik de gum.'], type: 'grafiek', g: G6, pts: P6, volgorde: 'x', min: 7, bron: [T6],
    hint: ['Begin bij het punt (0, 6000).', '5200 ligt tussen 5000 en 6000: iets boven 5000.'], uitleg: ['Punten: (0, 6000), (15, 5200), (30, 4000)', '(45, 2000), (60, 1400), (75, 600), (90, 0)', 'Verbind de punten met rechte lijnen.']},
   {id: '6c', nr: '6', deel: 'c', ctx: 'c6', dom: D43, vraag: ['Na ongeveer hoeveel minuten is de helft van het water weggepompt?'], type: 'num', ans: 38, bereik: [35, 40], eenheid: 'minuten', graf: graf6,
    hint: ['Eerst zat er 6000 liter in.', 'De helft is 6000 : 2 = 3000 liter.', 'Zoek 3000 op de verticale as en lees de tijd af.'], uitleg: ['De helft van 6000 is 3000 liter.', 'Bij 3000 liter lees je ongeveer 38 minuten af.', 'Een antwoord tussen 35 en 40 minuten is goed.'], fouten: {45: 'Tijdstip uit de tabel gekozen in plaats van afgelezen', 30: 'Tijdstip uit de tabel gekozen in plaats van afgelezen', 3000: 'Liters gegeven in plaats van minuten'}},
@@ -669,7 +678,7 @@ const SECTIES = [
    hint: ['Vul 0 in: 0 × 10 + 20 = …', 'Elk uur komt er 10 cm bij.'], uitleg: ['0 uur: 0 × 10 + 20 = 20', '1 uur: 1 × 10 + 20 = 30', 'Elk uur 10 erbij: 40, 50, 60, 70, 80, 90, 100']},
   {id: '8a2', nr: '8', deel: 'a ②', ctx: 'c8', dom: D42, vraag: ['Vul de tabel in bij vijver ②.', 'F:45 + aantal uren × 5 = hoogte'], type: 'tabel', kop: ['aantal uren', 'hoogte in cm'], xs: [0, 1, 2, 3, 4, 5, 6, 7, 8], ans: [45, 50, 55, 60, 65, 70, 75, 80, 85],
    hint: ['Vul 0 in: 45 + 0 × 5 = …', 'Eerst keer, dan plus.', 'Elk uur komt er 5 cm bij.'], uitleg: ['0 uur: 45 + 0 = 45', '1 uur: 45 + 5 = 50', 'Elk uur 5 erbij: 55, 60, 65, 70, 75, 80, 85'], },
-  {id: '8b1', nr: '8', deel: 'b ①', ctx: 'c8', dom: D43t, vraag: ['Teken de grafiek bij de tabel van vijver ①.', 'Klik op minstens 3 punten.', 'Verkeerd punt?', 'Klik er nog een keer op.'], type: 'grafiek', g: G8, f: fV1, min: 3, bron: ['8a1'],
+  {id: '8b1', nr: '8', deel: 'b ①', ctx: 'c8', dom: D43t, vraag: ['Teken de grafiek bij de tabel van vijver ①.', 'Klik op minstens 3 punten.', 'Verkeerd punt?', 'Gebruik de gum.'], type: 'grafiek', g: G8, f: fV1, min: 3, bron: ['8a1'],
    hint: ['Gebruik de punten uit de tabel van vijver ①.', 'Begin bij (0, 20).'], uitleg: ['Punt (0, 20)', 'Punt (5, 70)', 'Punt (8, 100)', 'Trek een rechte lijn door de punten.']},
   {id: '8b2', nr: '8', deel: 'b ②', ctx: 'c8', dom: D43t, vraag: ['Teken de grafiek bij de tabel van vijver ②.', 'De grafiek van vijver ① staat er al.', 'Klik op minstens 3 punten.'], type: 'grafiek', g: G8, f: fV2, min: 3, bron: ['8a2'], vast: [{f: fV1, kleur: PAARS, label: '①', pos: .99}],
    hint: ['Gebruik de punten uit de tabel van vijver ②.', 'Begin bij (0, 45).', '45 ligt precies tussen 40 en 50.'], uitleg: ['Punt (0, 45)', 'Punt (4, 65)', 'Punt (8, 85)', 'Trek een rechte lijn door de punten.']},
@@ -695,7 +704,7 @@ const SECTIES = [
   {id: 'K11a', nr: 'K11', deel: 'a', ctx: 'cK11', dom: D42, vraag: ['Bij tijd = −2 hoort 7:28 uur.', 'Waarom?', 'Kies de goede uitleg.'], type: 'mk',
    opties: ['tijd = −2 is 2 minuten vóór 7:30 uur. Dat is 7:28 uur.', 'tijd = −2 is 2 minuten na 7:30 uur. Dat is 7:28 uur.', 'tijd = −2 is 2 uur vóór 7:30 uur.', 'tijd = −2 is 20 minuten vóór 7:30 uur.'], ans: 0,
    hint: ['tijd = 0 is 7:30 uur.', 'Een negatieve tijd is een tijd vóór 7:30 uur.'], uitleg: ['tijd = 0 is 7:30 uur.', 'tijd = −2 is twee minuten eerder.', 'Dat is 7:28 uur.']},
-  {id: 'K11b', nr: 'K11', deel: 'b', ctx: 'cK11', dom: D43t, vraag: ['Teken de grafiek bij de tabel.', 'Zet alle punten uit de tabel.', 'De punten worden vanzelf verbonden.', 'Verkeerd punt?', 'Klik er nog een keer op.'], type: 'grafiek', g: GK11, pts: PK11, volgorde: 'x', min: 8, bron: [TK11],
+  {id: 'K11b', nr: 'K11', deel: 'b', ctx: 'cK11', dom: D43t, vraag: ['Teken de grafiek bij de tabel.', 'Zet alle punten uit de tabel.', 'De punten worden vanzelf verbonden.', 'Verkeerd punt?', 'Gebruik de gum.'], type: 'grafiek', g: GK11, pts: PK11, volgorde: 'x', min: 8, bron: [TK11],
    hint: ['Begin bij het punt (−3, 0).', '10 ligt precies tussen 0 en 20.'], uitleg: ['Punten: (−3, 0), (−2, 10), (−1, 20), (0, 40)', '(1, 60), (2, 70), (3, 90), (4, 110)', 'Verbind de punten met rechte lijnen.']},
   {id: 'K11c', nr: 'K11', deel: 'c', ctx: 'cK11', dom: D43, vraag: ['Hoe laat is Daan begonnen het bad te vullen?'], type: 'tijd', ans: '7:27', graf: grafK11,
    hint: ['Bij het begin was het bad leeg: aantal liters = 0.', 'Bij welke tijd hoort 0 liter?'], uitleg: ['0 liter bij tijd = −3.', 'tijd = −3 is 3 minuten vóór 7:30 uur.', 'Daan is om 7:27 uur begonnen.'], fouten: {'7:33': 'Negatieve tijd als ná 7:30 gelezen', '7:00': 'Uren en minuten verward'}},
@@ -833,14 +842,23 @@ function toonVraag(it){
   if (it.type === 'grafiek'){
     s.invoer = s.invoer || [];
     const toetsFout = it.toets && S.toetsKlaar && s.opgelost && !s.toetsGoed;
-    const svg = maakGrafiek(it.g, {interactief: true, punt: () => s.invoer, slot: () => s.opgelost, bijWijziging: bewaar, volgorde: it.volgorde,
+    let gumAan = false;
+    const svg = maakGrafiek(it.g, {interactief: true, punt: () => s.invoer, slot: () => s.opgelost, bijWijziging: bewaar,
+      gum: () => gumAan, melding: t => { const m = document.getElementById('puntMelding'); if (m) m.textContent = t; }, volgorde: it.volgorde,
       lijnen: (it.vast || []).concat(toetsFout ? [it.pts ? {pts: it.pts, kleur: '#16965A'} : {f: it.f, kleur: '#16965A'}] : []),
       kleurPunt: (x, y) => s.opgelost && (!it.toets || (S.toetsKlaar && s.toetsGoed)) ? '#16965A' : '#5E0696'});
     links.appendChild(svg);
-    links.insertAdjacentHTML('beforeend', `<div class="graf-uitleg">Klik op het rooster om een punt te zetten.<br>Klik er nog een keer op om het weg te halen.</div>
+    links.insertAdjacentHTML('beforeend', `<div class="graf-uitleg">Klik op het rooster om een punt te zetten.<br>Verkeerd punt? Klik op de gum en dan op dat punt.</div>
       <div class="graf-uitleg" id="puntMelding" role="status"></div>
-      <button class="knop licht" id="wis">Alles wissen</button>`);
-    $('#wis').onclick = () => { if (s.opgelost) return; s.invoer.length = 0; svg._teken(); bewaar(); };
+      <div class="graf-knoppen">
+        <button class="knop licht gum" id="gum" type="button" aria-pressed="false" title="Gum: haal één punt weg"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path class="vul" d="M16.2 3.6a2 2 0 0 1 2.8 0l3.4 3.4a2 2 0 0 1 0 2.8L12 20.2H7.4L2.6 15.4a2 2 0 0 1 0-2.8z" fill="#E924D5"/><path d="M9 9.2l6.2 6.2" stroke="#5E0696" stroke-width="2"/><path d="M13 20.2h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Gum</span></button>
+        <button class="knop licht" id="wis" type="button">Alles wissen</button>
+      </div>`);
+    const zetGum = aan => { gumAan = aan; const g = $('#gum'); g.setAttribute('aria-pressed', aan); g.querySelector('span').textContent = aan ? 'Gum aan' : 'Gum'; svg.classList.toggle('gum-aan', aan);
+      $('#puntMelding').textContent = aan ? 'De gum staat aan. Klik op het punt dat weg moet.' : ''; };
+    $('#gum').onclick = () => { if (s.opgelost) return; zetGum(!gumAan); };
+    $('#wis').onclick = () => { if (s.opgelost) return; s.invoer.length = 0; svg._teken(); bewaar(); zetGum(false); };
+    if (s.opgelost){ $('#gum').disabled = true; $('#wis').disabled = true; }
     if (it.bron) toonBronTabellen(it);
   } else if (it.graf){ links.appendChild(it.graf()); }
   else if (ctx.graf){ links.appendChild(ctx.graf()); }
