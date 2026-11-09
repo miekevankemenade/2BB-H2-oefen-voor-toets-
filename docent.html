@@ -30,11 +30,15 @@ pre{white-space:pre-wrap;background:#F1E6FA;border-radius:12px;padding:14px;font
 .melding{font-weight:600;margin-top:8px}
 .tegels{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
 .tegel{border:2px solid var(--lijn);border-radius:14px;padding:12px 14px;background:#fff}
+button.wis{background:#fff;color:var(--fout);border:2px solid var(--fout);padding:5px 12px;font-size:13px}
+button.wis:hover{background:#fdeced}
+button.wis:disabled{opacity:.4;cursor:default}
+td.vink,th.vink{width:34px;text-align:center} input[type=checkbox]{width:18px;height:18px;accent-color:var(--paars);cursor:pointer}
 .tegel .k{font-size:13px;color:var(--zacht);font-weight:600}.tegel .w{font-size:24px;font-weight:800;color:var(--paars)}
 </style>
 </head>
 <body>
-<header><h1>Resultaten · H2 Formules</h1><span class="r" id="wie"></span></header>
+<header><h1>Resultaten · 2BB H2 Grafieken</h1><span class="r" id="wie"></span></header>
 <div class="wrap">
   <div class="kaart" id="login">
     <h2 style="margin-top:0;color:var(--paars)">Inloggen als docent</h2>
@@ -63,12 +67,13 @@ pre{white-space:pre-wrap;background:#F1E6FA;border-radius:12px;padding:14px;font
         <div class="melding" id="wwMelding"></div>
       </div>
       <div class="melding" id="dmelding"></div>
-      <div class="tw"><table><thead><tr><th>Datum</th><th>Leerling</th><th>Klas</th><th>Cijfer</th><th>Score</th><th>Gokkans</th><th>Tip</th></tr></thead><tbody id="rijen"></tbody></table></div>
+      <div class="tw"><table><thead><tr><th>Datum</th><th>Leerling</th><th>Klas</th><th>Cijfer</th><th>Score</th><th>Gokkans</th><th>Tip</th><th></th></tr></thead><tbody id="rijen"></tbody></table></div>
     </div>
     <div class="kaart"><h3 style="margin-top:0;color:var(--paars)">Codes en voortgang van leerlingen</h3>
-      <p style="margin-top:0">Is een leerling zijn code kwijt? Zoek hem hier op.</p>
-      <div class="rij"><label for="vZoek">Zoek</label><input id="vZoek" placeholder="naam of klas"><button class="licht" id="vVervers">Vernieuwen</button></div>
-      <div class="tw"><table><thead><tr><th>Leerling</th><th>Klas</th><th>Code</th><th>Opdrachten af</th><th>Laatst gewerkt</th></tr></thead><tbody id="vRijen"></tbody></table></div>
+      <p style="margin-top:0">Is een leerling zijn code kwijt? Zoek hem hier op.<br>Wil je leerlingen verwijderen? Vink ze aan en klik op <b>Verwijder geselecteerde</b>.<br>Dan verdwijnen hun voortgang en hun resultaten in deze app. Dit kun je niet ongedaan maken.</p>
+      <div class="rij"><label for="vZoek">Zoek</label><input id="vZoek" placeholder="naam of klas"><button class="licht" id="vVervers">Vernieuwen</button><button class="wis" id="vWis" disabled>Verwijder geselecteerde</button></div>
+      <div class="melding" id="vMelding"></div>
+      <div class="tw"><table><thead><tr><th class="vink"><input type="checkbox" id="vAlles" aria-label="Alle zichtbare leerlingen selecteren"></th><th>Leerling</th><th>Klas</th><th>Code</th><th>Opdrachten af</th><th>Laatst gewerkt</th><th></th></tr></thead><tbody id="vRijen"></tbody></table></div>
     </div>
     <div class="kaart" id="detail" hidden><h3 style="margin-top:0;color:var(--paars)" id="dTitel"></h3><pre id="dTekst"></pre></div>
   </div>
@@ -163,8 +168,17 @@ function toon(){
     <div class="tegel"><div class="k">Gemiddeld cijfer</div><div class="w">${rows.length ? gem.toFixed(1).replace('.', ',') : '–'}</div></div>
     <div class="tegel"><div class="k">Gokkans hoog</div><div class="w">${hoog}</div></div>`;
   $('#rijen').innerHTML = rows.map((r, i) => `<tr class="klik" data-i="${data.indexOf(r)}"><td>${new Date(r.created_at).toLocaleString('nl-NL', {dateStyle: 'short', timeStyle: 'short'})}</td><td>${esc(r.leerling)}</td><td>${esc(r.klas)}</td>
-     <td><b>${Number(r.cijfer).toFixed(1).replace('.', ',')}</b></td><td>${r.score}/${r.totaal}</td><td><span class="pil ${esc(r.gokkans)}">${esc(r.gokkans)}</span></td><td style="white-space:normal;min-width:240px">${esc(r.samenvatting)}</td></tr>`).join('')
-     || '<tr><td colspan="7">Nog geen resultaten.</td></tr>';
+     <td><b>${Number(r.cijfer).toFixed(1).replace('.', ',')}</b></td><td>${r.score}/${r.totaal}</td><td><span class="pil ${esc(r.gokkans)}">${esc(r.gokkans)}</span></td><td style="white-space:normal;min-width:240px">${esc(r.samenvatting)}</td><td><button class="wis" data-rid="${esc(r.id)}" title="Verwijder deze inzending">Verwijder</button></td></tr>`).join('')
+     || '<tr><td colspan="8">Nog geen resultaten.</td></tr>';
+  document.querySelectorAll('button[data-rid]').forEach(b => b.onclick = async ev => {
+    ev.stopPropagation(); const r = data.find(x => String(x.id) === b.dataset.rid); if (!r) return;
+    if (!confirm(`Deze inzending van ${r.leerling} verwijderen?\n\nDit kun je niet ongedaan maken.`)) return;
+    b.disabled = true;
+    const {data: weg, error} = await db.from(cfg.TABEL || 'resultaten').delete().eq('id', r.id).select('id');
+    $('#detail').hidden = true; await laad();
+    $('#dmelding').style.color = error || !weg.length ? 'var(--fout)' : 'var(--goed)';
+    $('#dmelding').textContent = error ? 'Verwijderen lukte niet: ' + error.message : !weg.length ? 'Verwijderen lukte niet. Heb je docentrechten?' : `Inzending van ${r.leerling} verwijderd.`;
+  });
   document.querySelectorAll('tr.klik').forEach(tr => tr.onclick = () => { const r = data[+tr.dataset.i]; $('#detail').hidden = false; $('#dTitel').textContent = r.leerling + (r.klas ? ' · ' + r.klas : ''); $('#dTekst').textContent = r.export_tekst || ''; $('#detail').scrollIntoView({behavior: 'smooth'}); });
 }
 let vData = [];
@@ -173,17 +187,38 @@ const OUDE_APP = 'H2 Formules – 2.4 t/m 2.6';
 const moduleVan = r => (r.data && r.data.module) || OUDE_APP;
 async function laadVoortgang(){
   const {data: d, error} = await db.from('voortgang').select('code, leerling, klas, bijgewerkt, data').order('bijgewerkt', {ascending: false}).limit(2000);
-  if (error){ $('#vRijen').innerHTML = `<tr><td colspan="5">Laden mislukt: ${esc(error.message)}</td></tr>`; return; }
+  if (error){ $('#vRijen').innerHTML = `<tr><td colspan="7">Laden mislukt: ${esc(error.message)}</td></tr>`; return; }
   vData = d; toonVoortgang(); if (data.length) laad();
+}
+const gekozen = new Set();
+function wisKnop(){ const n = gekozen.size; $('#vWis').disabled = !n; $('#vWis').textContent = n ? `Verwijder geselecteerde (${n})` : 'Verwijder geselecteerde'; }
+async function verwijderLeerlingen(codes){
+  const rijen = vData.filter(r => codes.includes(r.code)); if (!rijen.length) return;
+  const namen = rijen.map(r => r.leerling + (r.klas ? ' (' + r.klas + ')' : ''));
+  if (!confirm(`${rijen.length === 1 ? 'Deze leerling' : 'Deze ' + rijen.length + ' leerlingen'} verwijderen?\n\n${namen.slice(0, 15).join('\n')}${namen.length > 15 ? '\n… en ' + (namen.length - 15) + ' meer' : ''}\n\nHun voortgang en resultaten in deze app worden verwijderd.\nDit kun je niet ongedaan maken.`)) return;
+  const m = $('#vMelding'); m.style.color = ''; m.textContent = 'Bezig met verwijderen…'; $('#vWis').disabled = true;
+  const r1 = await db.from(cfg.TABEL || 'resultaten').delete().in('code', codes).select('id');
+  const r2 = await db.from('voortgang').delete().in('code', codes).select('code');
+  if (r1.error || r2.error){ m.style.color = 'var(--fout)'; m.textContent = 'Verwijderen lukte niet: ' + (r1.error || r2.error).message; }
+  else if (!r2.data.length){ m.style.color = 'var(--fout)'; m.textContent = 'Er is niets verwijderd. Heb je docentrechten?'; }
+  else { m.style.color = 'var(--goed)'; m.textContent = `${r2.data.length} ${r2.data.length === 1 ? 'leerling' : 'leerlingen'} verwijderd, met ${r1.data.length} ${r1.data.length === 1 ? 'resultaat' : 'resultaten'}.`; }
+  codes.forEach(c => gekozen.delete(c)); wisKnop(); await laadVoortgang(); laad();
 }
 function toonVoortgang(){
   const z = $('#vZoek').value.trim().toLowerCase();
   const m = $('#fModule').value;
   const rows = vData.filter(r => (!m || moduleVan(r) === m)).filter(r => !z || (r.leerling || '').toLowerCase().includes(z) || (r.klas || '').toLowerCase().includes(z));
   $('#vRijen').innerHTML = rows.map(r => { const items = (r.data && r.data.items) || {}; const af = Object.values(items).filter(x => x && x.opgelost).length;
-    return `<tr><td>${esc(r.leerling)}</td><td>${esc(r.klas)}</td><td style="font-family:Courier New,monospace;font-weight:700;letter-spacing:1px">${esc(r.code)}</td><td>${af}</td><td>${new Date(r.bijgewerkt).toLocaleString('nl-NL', {dateStyle: 'short', timeStyle: 'short'})}</td></tr>`; }).join('')
-    || '<tr><td colspan="5">Nog geen leerlingen.</td></tr>';
+    return `<tr><td class="vink"><input type="checkbox" data-code="${esc(r.code)}" ${gekozen.has(r.code) ? 'checked' : ''} aria-label="Selecteer ${esc(r.leerling)}"></td><td>${esc(r.leerling)}</td><td>${esc(r.klas)}</td><td style="font-family:Courier New,monospace;font-weight:700;letter-spacing:1px">${esc(r.code)}</td><td>${af}</td><td>${new Date(r.bijgewerkt).toLocaleString('nl-NL', {dateStyle: 'short', timeStyle: 'short'})}</td><td><button class="wis" data-code="${esc(r.code)}" title="Verwijder deze leerling">Verwijder</button></td></tr>`; }).join('')
+    || '<tr><td colspan="7">Nog geen leerlingen.</td></tr>';
+  const zicht = rows.map(r => r.code);
+  $('#vAlles').checked = zicht.length > 0 && zicht.every(c => gekozen.has(c));
+  $('#vAlles').onchange = () => { zicht.forEach(c => $('#vAlles').checked ? gekozen.add(c) : gekozen.delete(c)); toonVoortgang(); };
+  document.querySelectorAll('#vRijen input[data-code]').forEach(cb => cb.onchange = () => { cb.checked ? gekozen.add(cb.dataset.code) : gekozen.delete(cb.dataset.code); wisKnop(); $('#vAlles').checked = zicht.every(c => gekozen.has(c)); });
+  document.querySelectorAll('#vRijen button[data-code]').forEach(b => b.onclick = () => verwijderLeerlingen([b.dataset.code]));
+  wisKnop();
 }
+$('#vWis').onclick = () => verwijderLeerlingen([...gekozen]);
 $('#vZoek').oninput = toonVoortgang; $('#vVervers').onclick = laadVoortgang;
 $('#csv').onclick = async () => {
   const rows = gefilterd();
