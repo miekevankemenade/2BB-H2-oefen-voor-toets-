@@ -35,6 +35,19 @@ button.wis:hover{background:#fdeced}
 button.wis:disabled{opacity:.4;cursor:default}
 td.vink,th.vink{width:34px;text-align:center} input[type=checkbox]{width:18px;height:18px;accent-color:var(--paars);cursor:pointer}
 .tegel .k{font-size:13px;color:var(--zacht);font-weight:600}.tegel .w{font-size:24px;font-weight:800;color:var(--paars)}
+.analyse-knoppen{display:flex;gap:6px;flex-wrap:wrap}
+.soort{border:2px solid var(--paars);background:#fff;color:var(--paars);border-radius:20px;padding:6px 14px;font-weight:700;cursor:pointer}
+.soort.aan{background:var(--paars);color:#fff}
+.balk{display:inline-block;height:10px;border-radius:5px;background:var(--goed);vertical-align:middle;margin-right:6px}
+.balk-wrap{display:inline-block;width:90px;height:10px;border-radius:5px;background:#fdeced;vertical-align:middle;margin-right:6px;overflow:hidden}
+.balk-wrap .balk{margin:0}
+.foutpil{display:inline-block;background:#fdeced;color:var(--fout);border-radius:10px;padding:2px 8px;margin:2px 4px 2px 0;font-size:13px;font-weight:600;white-space:normal}
+.antw{font-family:'Courier New',monospace;font-size:13px;background:#F1E6FA;border-radius:6px;padding:2px 6px;display:inline-block;margin:2px 0;white-space:pre-wrap;word-break:break-word}
+.antw.goed{background:#eaf8f1}
+.vtekst{font-size:13px;color:var(--zacht);white-space:normal;max-width:340px}
+.lln{border-top:1px solid var(--lijn);padding:10px 0}
+.lln b{color:var(--paars)}
+td.wrap{white-space:normal}
 </style>
 </head>
 <body>
@@ -69,6 +82,14 @@ td.vink,th.vink{width:34px;text-align:center} input[type=checkbox]{width:18px;he
       <div class="melding" id="dmelding"></div>
       <div class="tw"><table><thead><tr><th>Datum</th><th>Leerling</th><th>Klas</th><th>Cijfer</th><th>Score</th><th>Gokkans</th><th>Tip</th><th></th></tr></thead><tbody id="rijen"></tbody></table></div>
     </div>
+    <div class="kaart" id="foutKaart"><h3 style="margin-top:0;color:var(--paars)">Wat gaat er mis?</h3>
+      <p style="margin-top:0">Per vraag zie je hoeveel leerlingen hem in één keer goed hadden, welke fouten ze maakten en wat ze precies invulden.<br>De moeilijkste vragen staan bovenaan. Klik op <b>Bekijk</b> voor de antwoorden per leerling.</p>
+      <div class="rij"><div class="analyse-knoppen"><button class="soort aan" data-soort="opdr">Opdrachten</button><button class="soort" data-soort="toets">Oefentoets</button></div>
+        <label for="aKlas">Klas</label><select id="aKlas"><option value="">Alle klassen</option></select>
+        <label for="aSort">Volgorde</label><select id="aSort"><option value="moeilijk">Moeilijkste eerst</option><option value="volg">Zoals in de app</option></select></div>
+      <div class="tw"><table><thead><tr><th>Vraag</th><th>Gemaakt door</th><th>In één keer goed</th><th>Nog niet goed</th><th>Gem. pogingen</th><th>Meest gemaakte fouten</th><th></th></tr></thead><tbody id="aRijen"></tbody></table></div>
+    </div>
+    <div class="kaart" id="foutDetail" hidden><h3 style="margin-top:0;color:var(--paars)" id="fdTitel"></h3><div id="fdInhoud"></div></div>
     <div class="kaart"><h3 style="margin-top:0;color:var(--paars)">Codes en voortgang van leerlingen</h3>
       <p style="margin-top:0">Is een leerling zijn code kwijt? Zoek hem hier op.<br>Wil je leerlingen verwijderen? Vink ze aan en klik op <b>Verwijder geselecteerde</b>.<br>Dan verdwijnen hun voortgang en hun resultaten in deze app. Dit kun je niet ongedaan maken.</p>
       <div class="rij"><label for="vZoek">Zoek</label><input id="vZoek" placeholder="naam of klas"><button class="licht" id="vVervers">Vernieuwen</button><button class="wis" id="vWis" disabled>Verwijder geselecteerde</button></div>
@@ -209,13 +230,15 @@ function toonVoortgang(){
   const m = $('#fModule').value;
   const rows = vData.filter(r => (!m || moduleVan(r) === m)).filter(r => !z || (r.leerling || '').toLowerCase().includes(z) || (r.klas || '').toLowerCase().includes(z));
   $('#vRijen').innerHTML = rows.map(r => { const items = (r.data && r.data.items) || {}; const af = Object.values(items).filter(x => x && x.opgelost).length;
-    return `<tr><td class="vink"><input type="checkbox" data-code="${esc(r.code)}" ${gekozen.has(r.code) ? 'checked' : ''} aria-label="Selecteer ${esc(r.leerling)}"></td><td>${esc(r.leerling)}</td><td>${esc(r.klas)}</td><td style="font-family:Courier New,monospace;font-weight:700;letter-spacing:1px">${esc(r.code)}</td><td>${af}</td><td>${new Date(r.bijgewerkt).toLocaleString('nl-NL', {dateStyle: 'short', timeStyle: 'short'})}</td><td><button class="wis" data-code="${esc(r.code)}" title="Verwijder deze leerling">Verwijder</button></td></tr>`; }).join('')
+    return `<tr><td class="vink"><input type="checkbox" data-code="${esc(r.code)}" ${gekozen.has(r.code) ? 'checked' : ''} aria-label="Selecteer ${esc(r.leerling)}"></td><td>${esc(r.leerling)}</td><td>${esc(r.klas)}</td><td style="font-family:Courier New,monospace;font-weight:700;letter-spacing:1px">${esc(r.code)}</td><td>${af}</td><td>${new Date(r.bijgewerkt).toLocaleString('nl-NL', {dateStyle: 'short', timeStyle: 'short'})}</td><td><button class="licht" data-fouten="${esc(r.code)}" title="Bekijk de fouten van deze leerling">Fouten</button> <button class="wis" data-code="${esc(r.code)}" title="Verwijder deze leerling">Verwijder</button></td></tr>`; }).join('')
     || '<tr><td colspan="7">Nog geen leerlingen.</td></tr>';
   const zicht = rows.map(r => r.code);
   $('#vAlles').checked = zicht.length > 0 && zicht.every(c => gekozen.has(c));
   $('#vAlles').onchange = () => { zicht.forEach(c => $('#vAlles').checked ? gekozen.add(c) : gekozen.delete(c)); toonVoortgang(); };
   document.querySelectorAll('#vRijen input[data-code]').forEach(cb => cb.onchange = () => { cb.checked ? gekozen.add(cb.dataset.code) : gekozen.delete(cb.dataset.code); wisKnop(); $('#vAlles').checked = zicht.every(c => gekozen.has(c)); });
   document.querySelectorAll('#vRijen button[data-code]').forEach(b => b.onclick = () => verwijderLeerlingen([b.dataset.code]));
+  document.querySelectorAll('#vRijen button[data-fouten]').forEach(b => b.onclick = () => toonLeerlingFouten(b.dataset.fouten));
+  toonAnalyse();
   wisKnop();
 }
 $('#vWis').onclick = () => verwijderLeerlingen([...gekozen]);
@@ -226,6 +249,77 @@ $('#csv').onclick = async () => {
   try { await navigator.clipboard.writeText(t); $('#dmelding').textContent = 'Gekopieerd. Plak het in Excel met Ctrl+V.'; } catch (e) { $('#dmelding').textContent = 'Kopiëren lukte niet.'; }
 };
 start();
+
+/* =========================================================
+   WAT GAAT ER MIS?  (uit de voortgang van de leerlingen)
+   ========================================================= */
+let aSoort = 'opdr';
+const vraagNaam = (id, x) => (x && x.label) || (id.startsWith('T') ? 'Toets ' + id.slice(1) : 'Opdracht ' + id);
+const isToets = (id, x) => (x && typeof x.toets === 'boolean') ? x.toets : /^T/.test(id);
+const sec = ms => { const s = Math.round((ms || 0) / 1000); return s < 60 ? s + ' s' : Math.floor(s / 60) + ' min ' + (s % 60) + ' s'; };
+function analyseRijen(){
+  const m = $('#fModule').value, k = $('#aKlas').value;
+  return vData.filter(r => (!m || moduleVan(r) === m) && (!k || r.klas === k));
+}
+function toonAnalyse(){
+  if (!vData) return;
+  const klassen = [...new Set(vData.map(r => r.klas).filter(Boolean))].sort(); const sel = $('#aKlas'); const h = sel.value;
+  sel.innerHTML = '<option value="">Alle klassen</option>' + klassen.map(k => `<option ${k === h ? 'selected' : ''}>${esc(k)}</option>`).join('');
+  const per = new Map();
+  analyseRijen().forEach(r => {
+    const items = (r.data && r.data.items) || {};
+    Object.entries(items).forEach(([id, x]) => {
+      if (!x || !x.pogingen || !x.pogingen.length) return;
+      if ((aSoort === 'toets') !== isToets(id, x)) return;
+      if (!per.has(id)) per.set(id, {id, naam: vraagNaam(id, x), vraag: x.vraag || '', volg: x.volg ?? 9999, n: 0, eersteGoed: 0, nietGoed: 0, pog: 0, cats: {}, lln: []});
+      const a = per.get(id); if (x.label) a.naam = x.label; if (x.vraag) a.vraag = x.vraag; if (x.volg != null) a.volg = x.volg;
+      a.n++; a.pog += x.pogingen.length;
+      const fouten = x.pogingen.filter(p => !p.goed);
+      if (aSoort === 'toets'){ if (x.toetsGoed) a.eersteGoed++; else a.nietGoed++; }
+      else { if (x.opgelost && !fouten.length && !x.hint) a.eersteGoed++; if (!x.opgelost) a.nietGoed++; }
+      fouten.forEach(p => { const c = (p.cat || 'Fout antwoord').replace(/\s*\(.*\)$/, ''); a.cats[c] = (a.cats[c] || 0) + 1; });
+      a.lln.push({naam: r.leerling, klas: r.klas, code: r.code, x});
+    });
+  });
+  let rijen = [...per.values()];
+  const pct = a => a.n ? a.eersteGoed / a.n : 1;
+  rijen.sort($('#aSort').value === 'volg' ? (p, q) => p.volg - q.volg : (p, q) => pct(p) - pct(q) || q.n - p.n);
+  $('#aRijen').innerHTML = rijen.map(a => { const pc = Math.round(pct(a) * 100); const top = Object.entries(a.cats).sort((p, q) => q[1] - p[1]).slice(0, 3);
+    return `<tr><td class="wrap"><b>${esc(a.naam)}</b>${a.vraag ? `<div class="vtekst">${esc(a.vraag)}</div>` : ''}</td><td>${a.n}</td>
+      <td><span class="balk-wrap"><span class="balk" style="width:${pc}%"></span></span>${pc}%</td><td>${a.nietGoed}</td><td>${(a.pog / a.n).toFixed(1).replace('.', ',')}</td>
+      <td class="wrap">${top.map(([c, n]) => `<span class="foutpil">${esc(c)} · ${n}×</span>`).join('') || '<span style="color:var(--goed)">geen fouten</span>'}</td>
+      <td><button class="licht" data-vraag="${esc(a.id)}">Bekijk</button></td></tr>`; }).join('')
+    || `<tr><td colspan="7">Nog geen ${aSoort === 'toets' ? 'oefentoetsen' : 'opdrachten'} gemaakt${$('#aKlas').value ? ' in deze klas' : ''}.</td></tr>`;
+  document.querySelectorAll('#aRijen button[data-vraag]').forEach(b => b.onclick = () => toonVraagFouten(per.get(b.dataset.vraag)));
+}
+function poging(p, i){
+  const tijd = p.ms != null ? ` · ${sec(p.ms)}` : '';
+  return `<div>${i + 1}. ${p.goed ? '<b style="color:var(--goed)">goed</b>' : `<b style="color:var(--fout)">fout</b>${p.cat ? ' – ' + esc(p.cat) : ''}`}${p.hint ? ' · hint gebruikt' : ''}${tijd}
+    ${p.antw ? `<br><span class="antw ${p.goed ? 'goed' : ''}">${esc(p.antw)}</span>` : ''}</div>`;
+}
+function toonVraagFouten(a){
+  if (!a) return;
+  $('#foutDetail').hidden = false; $('#fdTitel').textContent = a.naam + ' – antwoorden per leerling';
+  const lln = a.lln.slice().sort((p, q) => (q.x.pogingen.filter(z => !z.goed).length - p.x.pogingen.filter(z => !z.goed).length) || String(p.naam).localeCompare(q.naam));
+  $('#fdInhoud').innerHTML = (a.vraag ? `<p class="vtekst" style="max-width:none">${esc(a.vraag)}</p>` : '') + lln.map(l => {
+    const f = l.x.pogingen.filter(z => !z.goed).length;
+    const status = aSoort === 'toets' ? (l.x.toetsGoed ? '✓ goed' : '✗ fout') : (l.x.opgelost ? (f || l.x.hint ? `✓ goed na ${f} ${f === 1 ? 'fout' : 'fouten'}${l.x.hint ? ' en hint' : ''}` : '✓ in één keer goed') : `✗ nog niet goed (${f} ${f === 1 ? 'fout' : 'fouten'})`);
+    return `<div class="lln"><b>${esc(l.naam)}</b>${l.klas ? ' · ' + esc(l.klas) : ''} – ${status}${l.x.pogingen.map(poging).join('')}</div>`; }).join('')
+    + '<p class="vtekst" style="max-width:none">Bij oudere pogingen (van vóór deze update) is niet bewaard wat de leerling precies invulde.</p>';
+  $('#foutDetail').scrollIntoView({behavior: 'smooth'});
+}
+function toonLeerlingFouten(code){
+  const r = vData.find(x => x.code === code); if (!r) return;
+  const items = Object.entries((r.data && r.data.items) || {}).filter(([id, x]) => x && x.pogingen && x.pogingen.length);
+  items.sort((p, q) => (p[1].volg ?? 9999) - (q[1].volg ?? 9999));
+  const fout = items.filter(([id, x]) => x.pogingen.some(p => !p.goed) || !x.opgelost || (x.toets && !x.toetsGoed));
+  $('#foutDetail').hidden = false; $('#fdTitel').textContent = `${r.leerling}${r.klas ? ' · ' + r.klas : ''} – vragen met fouten`;
+  $('#fdInhoud').innerHTML = `<p>${items.length} vragen gemaakt, waarvan ${items.length - fout.length} in één keer goed.</p>` + (fout.map(([id, x]) =>
+    `<div class="lln"><b>${esc(vraagNaam(id, x))}</b>${x.vraag ? `<div class="vtekst" style="max-width:none">${esc(x.vraag)}</div>` : ''}${x.pogingen.map(poging).join('')}</div>`).join('') || '<p>Geen fouten. 🎉</p>');
+  $('#foutDetail').scrollIntoView({behavior: 'smooth'});
+}
+document.querySelectorAll('.soort').forEach(b => b.onclick = () => { aSoort = b.dataset.soort; document.querySelectorAll('.soort').forEach(x => x.classList.toggle('aan', x === b)); $('#foutDetail').hidden = true; toonAnalyse(); });
+$('#aKlas').onchange = toonAnalyse; $('#aSort').onchange = toonAnalyse;
 </script>
 </body>
 </html>

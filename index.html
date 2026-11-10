@@ -755,7 +755,9 @@ async function wolkNu(){
   } catch (e) { zetWolkStatus('⚠ Niet opgeslagen (geen internet?)'); }
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') wolkNu(); });
-function st(id){ if (!S.items[id]) S.items[id] = {pogingen: [], hint: 0, opgelost: false, punten: null, tijd: 0, gezien: null, laatste: null, hulpGetoond: false, invoer: null}; return S.items[id]; }
+function st(id){ if (!S.items[id]) S.items[id] = {pogingen: [], hint: 0, opgelost: false, punten: null, tijd: 0, gezien: null, laatste: null, hulpGetoond: false, invoer: null};
+  const x = S.items[id]; if (!x.label){ const it = ITEMS.find(i => i.id === id); if (it){ x.label = (it.toets ? 'Toets ' : '') + (it.nr === 'Leerdoelen' ? 'Leerdoelen ' : '') + (it.nr !== 'Leerdoelen' ? it.nr : '') + (it.deel ? ' ' + it.deel : ''); x.vraag = (it.vraag || []).filter(v => !v.startsWith('F:')).join(' ').slice(0, 140); x.toets = !!it.toets; x.volg = ITEMS.indexOf(it); } }
+  return x; }
 function puntenVan(s){ if (!s.opgelost) return 0; if ('toetsGoed' in s) return s.toetsGoed ? 2 : 0; const fouten = s.pogingen.filter(p => !p.goed).length; if (fouten === 0 && !s.hint) return 2; if (fouten <= 1) return 1; return 0; }
 
 /* =========================================================
@@ -939,6 +941,23 @@ function herstelInvoer(it, s){
   if (it.type === 'mk' && s.keuze) document.querySelectorAll('.optie').forEach(x => x.classList.toggle('gekozen', s.keuze.includes(+x.dataset.k)));
   if (s.hint){ const hv = $('#hintvak'); hv.classList.add('open'); hv.innerHTML = it.hint.slice(0, s.hint).map((h, k) => `<div><b>Hint ${k + 1}:</b> ${miniLees()}<br>${regels(h)}</div>`).join(''); }
 }
+
+/* ---------- wat heeft de leerling precies ingevuld (voor de docent) ---------- */
+function antwTekst(it, w, s){
+  try {
+    const sym = v => String(v).trim() === '' ? '…' : String(v).trim();
+    if (it.type === 'mk') return (s.keuze || []).map(k => it.opties[k]).join(' + ');
+    if (it.type === 'grafiek') return (s.invoer || []).map(p => `(${p[0]}, ${p[1]})`).join(' ');
+    if (it.type === 'tabel') return it.xs.map((x, k) => (it.gegeven || []).includes(k) ? null : `${x}→${sym(w['c' + k] || '')}`).filter(Boolean).join('  ');
+    if (it.type === 'stappen') return it.velden.map((f, k) => {
+      if (f.tpl){ const d = f.tpl.split('{}'); return d.map((t, j) => t + (j < d.length - 1 ? '[' + sym(w[`a${k}_${j}`] || '') + ']' : '')).join(''); }
+      if (f.soort === 'keuze') return (f.lab || '') + ' ' + (f.opties[+w['a' + k]] || '…');
+      if (f.as) return f.ans.map((a, j) => sym(w[`a${k}_${j}`] || '')).join(', ');
+      return (f.lab || '') + ' ' + sym(w['a' + k] || '');
+    }).join(' | ');
+    return Object.keys(w).sort().map(k => sym(w[k])).join(' | ');
+  } catch (e) { return ''; }
+}
 function verzamel(it){
   const w = {}; document.querySelectorAll('#invoer input, #invoer select, #links input.asvak').forEach(e => w[e.id] = e.value); return w;
 }
@@ -1099,13 +1118,13 @@ function controleer(it){
   if (leeg){ fb.className = 'feedback info'; fb.textContent = 'Vul eerst een antwoord in.'; return; }
   if (schrijf){ fb.className = 'feedback info'; fb.innerHTML = `${fmtF(schrijf)}<br><span style="font-weight:500">Dit telt niet als fout. Pas het aan en klik opnieuw op Controleer.</span>`; return; }
   if (it.toets){
-    const t = nu(); s.pogingen.push({goed, cat, ms: t - (s.laatste || t), keuze: it.type === 'mk' ? (s.keuze || []).slice() : undefined, hint: 0});
+    const t = nu(); s.pogingen.push({goed, cat, ms: t - (s.laatste || t), keuze: it.type === 'mk' ? (s.keuze || []).slice() : undefined, hint: 0, antw: antwTekst(it, w, s).slice(0, 300)});
     s.tijd = t - s.gezien; s.opgelost = true; s.toetsGoed = goed; s.punten = goed ? 2 : 0; bewaar();
     document.querySelectorAll('#main input.goed, #main input.fout, #main select.goed, #main select.fout, #main .optie.goed, #main .optie.fout').forEach(e => e.classList.remove('goed', 'fout'));
     toonStatus(it); updateStrook(); if (it.type === 'grafiek') document.querySelector('svg.graf')._teken(); return;
   }
   const t = nu(); const dt = t - (s.laatste || t); s.laatste = t;
-  s.pogingen.push({goed, cat, ms: dt, keuze: it.type === 'mk' ? (s.keuze || []).slice() : undefined, hint: s.hint});
+  s.pogingen.push({goed, cat, ms: dt, keuze: it.type === 'mk' ? (s.keuze || []).slice() : undefined, hint: s.hint, antw: antwTekst(it, w, s).slice(0, 300)});
   s.tijd = t - s.gezien;
   if (goed){ s.opgelost = true; s.punten = puntenVan(s); bewaar(); toonStatus(it); updateStrook(); if (it.type === 'grafiek') document.querySelector('svg.graf')._teken(); return; }
   bewaar();
