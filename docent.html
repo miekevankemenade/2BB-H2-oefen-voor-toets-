@@ -36,6 +36,8 @@ button.wis:disabled{opacity:.4;cursor:default}
 td.vink,th.vink{width:34px;text-align:center} input[type=checkbox]{width:18px;height:18px;accent-color:var(--paars);cursor:pointer}
 .tegel .k{font-size:13px;color:var(--zacht);font-weight:600}.tegel .w{font-size:24px;font-weight:800;color:var(--paars)}
 .analyse-knoppen{display:flex;gap:6px;flex-wrap:wrap}
+.gokknop{border:0;cursor:pointer;font-family:inherit}
+.gok-tabel td{vertical-align:top;white-space:normal}
 .soort{border:2px solid var(--paars);background:#fff;color:var(--paars);border-radius:20px;padding:6px 14px;font-weight:700;cursor:pointer}
 .soort.aan{background:var(--paars);color:#fff}
 .balk{display:inline-block;height:10px;border-radius:5px;background:var(--goed);vertical-align:middle;margin-right:6px}
@@ -189,8 +191,9 @@ function toon(){
     <div class="tegel"><div class="k">Gemiddeld cijfer</div><div class="w">${rows.length ? gem.toFixed(1).replace('.', ',') : '–'}</div></div>
     <div class="tegel"><div class="k">Gokkans hoog</div><div class="w">${hoog}</div></div>`;
   $('#rijen').innerHTML = rows.map((r, i) => `<tr class="klik" data-i="${data.indexOf(r)}"><td>${new Date(r.created_at).toLocaleString('nl-NL', {dateStyle: 'short', timeStyle: 'short'})}</td><td>${esc(r.leerling)}</td><td>${esc(r.klas)}</td>
-     <td><b>${Number(r.cijfer).toFixed(1).replace('.', ',')}</b></td><td>${r.score}/${r.totaal}</td><td><span class="pil ${esc(r.gokkans)}">${esc(r.gokkans)}</span></td><td style="white-space:normal;min-width:240px">${esc(r.samenvatting)}</td><td><button class="wis" data-rid="${esc(r.id)}" title="Verwijder deze inzending">Verwijder</button></td></tr>`).join('')
+     <td><b>${Number(r.cijfer).toFixed(1).replace('.', ',')}</b></td><td>${r.score}/${r.totaal}</td><td>${r.gokkans ? `<button class="pil ${esc(r.gokkans)} gokknop" data-gok="${esc(r.id)}" title="Waarom deze gokkans?">${esc(r.gokkans)} ⓘ</button>` : '–'}</td><td style="white-space:normal;min-width:240px">${esc(r.samenvatting)}</td><td><button class="wis" data-rid="${esc(r.id)}" title="Verwijder deze inzending">Verwijder</button></td></tr>`).join('')
      || '<tr><td colspan="8">Nog geen resultaten.</td></tr>';
+  document.querySelectorAll('button[data-gok]').forEach(b => b.onclick = ev => { ev.stopPropagation(); toonGokRedenen(data.find(x => String(x.id) === b.dataset.gok)); });
   document.querySelectorAll('button[data-rid]').forEach(b => b.onclick = async ev => {
     ev.stopPropagation(); const r = data.find(x => String(x.id) === b.dataset.rid); if (!r) return;
     if (!confirm(`Deze inzending van ${r.leerling} verwijderen?\n\nDit kun je niet ongedaan maken.`)) return;
@@ -320,6 +323,53 @@ function toonLeerlingFouten(code){
 }
 document.querySelectorAll('.soort').forEach(b => b.onclick = () => { aSoort = b.dataset.soort; document.querySelectorAll('.soort').forEach(x => x.classList.toggle('aan', x === b)); $('#foutDetail').hidden = true; toonAnalyse(); });
 $('#aKlas').onchange = toonAnalyse; $('#aSort').onchange = toonAnalyse;
+
+/* =========================================================
+   WAAROM DEZE GOKKANS?
+   Zelfde regels als in de app:
+   1. antwoord binnen 3 seconden (per poging)
+   2. snel achter elkaar fout (binnen 5 s), zonder hint
+   3. bij meerkeuze bijna alle keuzes uitgeprobeerd (telt 3 keer mee)
+   score = (snel + rits + 3 × uitproberen) ÷ aantal pogingen
+   Laag < 15 %, Gemiddeld < 35 %, Hoog vanaf 35 %
+   ========================================================= */
+function gokSignalen(S){
+  const per = []; let alle = 0, snel = 0, rits = 0, spreiding = 0;
+  Object.entries((S && S.items) || {}).forEach(([id, x]) => {
+    if (!x || !x.pogingen || !x.pogingen.length || isToets(id, x)) return;
+    const reden = [];
+    alle += x.pogingen.length;
+    x.pogingen.forEach((p, i) => {
+      if (p.ms < 3000){ snel++; reden.push(`poging ${i + 1} na ${(p.ms / 1000).toFixed(1).replace('.', ',')} s${p.antw ? ` (${p.antw})` : ''}${p.goed ? ' – goed' : ' – fout'}`); }
+      if (i > 0 && !p.goed && !x.pogingen[i - 1].goed && p.ms < 5000 && !p.hint){ rits++; reden.push(`poging ${i + 1}: meteen opnieuw fout, binnen ${(p.ms / 1000).toFixed(1).replace('.', ',')} s, zonder hint`); }
+    });
+    const keuzes = new Set(x.pogingen.map(p => (p.keuze || [])[0]).filter(k => k != null));
+    if (keuzes.size >= 3){ spreiding++; reden.push(`${keuzes.size} verschillende keuzes uitgeprobeerd`); }
+    if (reden.length) per.push({id, naam: vraagNaam(id, x), volg: x.volg ?? 9999, reden});
+  });
+  per.sort((p, q) => p.volg - q.volg);
+  const score = alle ? (snel + spreiding * 3 + rits) / alle : 0;
+  return {per, alle, snel, rits, spreiding, score};
+}
+function toonGokRedenen(r){
+  if (!r) return;
+  const v = vData.find(x => r.code && x.code === r.code) || vData.find(x => x.leerling === r.leerling && x.klas === r.klas);
+  $('#detail').hidden = false; $('#dTitel').textContent = `Gokkans ${r.gokkans} – ${r.leerling}${r.klas ? ' · ' + r.klas : ''}`;
+  const pre = $('#dTekst'); pre.style.whiteSpace = 'normal';
+  if (!v){ pre.innerHTML = 'De pogingen van deze leerling zijn niet meer te vinden. Daarom kan ik niet laten zien bij welke vragen het gebeurde.'; $('#detail').scrollIntoView({behavior: 'smooth'}); return; }
+  const g = gokSignalen(v.data); const pct = Math.round(g.score * 100);
+  pre.innerHTML = `<p style="font-family:Montserrat,sans-serif;margin-top:0">De app kijkt naar drie signalen dat een leerling gokt in plaats van rekent:</p>
+    <table class="gok-tabel" style="font-family:Montserrat,sans-serif"><tbody>
+      <tr><td><b>${g.snel}×</b></td><td>Antwoord gegeven binnen 3 seconden.<br><span class="vtekst">Zo snel kun je de vraag meestal niet lezen en uitrekenen.</span></td></tr>
+      <tr><td><b>${g.rits}×</b></td><td>Meteen opnieuw fout, binnen 5 seconden, zonder de hint te gebruiken.<br><span class="vtekst">Dat wijst op proberen in plaats van nadenken.</span></td></tr>
+      <tr><td><b>${g.spreiding}×</b></td><td>Bij een meerkeuzevraag (bijna) alle keuzes één voor één aangeklikt.<br><span class="vtekst">Dit signaal telt 3 keer mee.</span></td></tr>
+    </tbody></table>
+    <p style="font-family:Montserrat,sans-serif">Berekening: (${g.snel} + ${g.rits} + 3 × ${g.spreiding}) ÷ ${g.alle} pogingen = <b>${pct}%</b>.<br>
+    Onder 15% is de gokkans laag, van 15 tot 35% gemiddeld, vanaf 35% hoog.</p>
+    ${g.per.length ? `<p style="font-family:Montserrat,sans-serif;margin-bottom:4px"><b>Bij deze vragen gebeurde het:</b></p>` + g.per.map(q => `<div class="lln" style="font-family:Montserrat,sans-serif"><b>${esc(q.naam)}</b><br>${q.reden.map(esc).join('<br>')}</div>`).join('') : '<p style="font-family:Montserrat,sans-serif">Geen signalen gevonden.</p>'}
+    <p class="vtekst" style="max-width:none">Let op: het zijn signalen, geen bewijs. Een leerling die een makkelijke vraag direct weet, is ook snel. De tijd telt vanaf het moment dat de vraag op het scherm komt. Oefentoetsvragen tellen niet mee.</p>`;
+  $('#detail').scrollIntoView({behavior: 'smooth'});
+}
 </script>
 </body>
 </html>
