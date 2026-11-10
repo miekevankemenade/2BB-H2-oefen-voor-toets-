@@ -668,6 +668,9 @@ const SECTIES = [
    hint: ['Zoek 20 op de verticale as.', 'Ga naar rechts tot de grafiek en dan recht naar beneden.'], uitleg: ['Bij 20 cm hoort 3 uur.', 'Na 3 uur is de kaars 20 cm.'], fouten: {5: 'Afleesfout', 20: 'Lengte gegeven in plaats van uren'}},
   {id: '7b', nr: '7', deel: 'b', ctx: 'c7', dom: D45, vraag: ['Controleer je antwoord met de formule.', 'Vul het aantal uur in.', 'Reken elke stap uit.'], type: 'stappen', begin: '32 − 4 × aantal uur = lengte',
    velden: [{tpl: '32 − 4 × {} = lengte', ans: [3], invul: true}, {tpl: '32 − {} = {}', ans: [12, 20]}, {tpl: 'Dus lengte = {} cm', ans: [20]}],
+   vrij: x => [[x], [4 * x, 32 - 4 * x], [32 - 4 * x]],
+   vrijUitleg: x => { const g = s => String(+s.toFixed(2)).replace('.', ',').replace('-', '−'); const l = 32 - 4 * x;
+     return [`Je hebt goed gerekend met ${g(x)} uur.`, `32 − 4 × ${g(x)} = ${g(l)}`, l === 20 ? 'De lengte is 20 cm. Je antwoord bij a klopt!' : `De lengte is dan ${g(l)} cm, niet 20 cm.`, ...(l === 20 ? [] : ['Kijk nog eens naar je antwoord bij a.'])]; },
    hint: ['Vul je antwoord van a in op de plek van aantal uur.', 'Eerst keer, dan min.'], uitleg: ['32 − 4 × 3 = lengte', '4 × 3 = 12', '32 − 12 = 20', 'De lengte is 20 cm. Het klopt!'], fouten: {84: 'Eerst min, dan keer gerekend'}},
   {id: '7c', nr: '7', deel: 'c', ctx: 'c7', dom: D43, vraag: ['Na hoeveel uur is de kaars opgebrand?'], type: 'num', ans: 8, eenheid: 'uur',
    hint: ['Opgebrand betekent: de lengte is 0 cm.', 'Waar raakt de grafiek de horizontale as?'], uitleg: ['Opgebrand: lengte = 0 cm.', 'De grafiek raakt de horizontale as bij 8 uur.', 'Na 8 uur is de kaars opgebrand.'], fouten: {32: 'Lengte bij het begin gegeven'}},
@@ -952,7 +955,9 @@ function toonStatus(it){
   if (s.opgelost){
     const p = puntenVan(s);
     fb.className = 'feedback goed';
-    fb.innerHTML = `${miniLees()}Goed zo! Je krijgt ${p} ${p === 1 ? 'punt' : 'punten'}.<br>${it.uitleg.map(u => regels(u)).join('<br>')}`;
+    const vx = it.vrij && s.waarden ? parseNum(s.waarden.a0_0 || '') : NaN;
+    const uitl = it.vrijUitleg && !isNaN(vx) ? it.vrijUitleg(vx) : it.uitleg;
+    fb.innerHTML = `${miniLees()}Goed zo! Je krijgt ${p} ${p === 1 ? 'punt' : 'punten'}.<br>${uitl.map(u => regels(u)).join('<br>')}`;
     document.querySelectorAll('#invoer input, #invoer select, #links input.asvak').forEach(e => { e.disabled = true; });
     $('#controleer').disabled = true; $('#hintKnop').disabled = true;
     const wk = $('#wisKeuze'); if (wk) wk.disabled = true;
@@ -1026,8 +1031,11 @@ function controleer(it){
       const ok = Math.abs(v - ans) < 1e-9;
       if (!ok && !eerste && raw.trim() !== '') eerste = catVeld || (it.fouten && it.fouten[String(v)]) || (!isNaN(v) && Math.abs(v + ans) < 1e-9 && ans !== 0 ? 'Min-teken fout' : '');
       res.push([id, ok]); if (!ok) fout++; };
+    // vrij: de leerling kiest zelf het getal dat hij invult; de andere vakjes worden daarmee nagerekend
+    const vrijX = it.vrij ? parseNum(w['a0_0'] || '') : NaN;
+    const vrijAns = it.vrij && !isNaN(vrijX) ? it.vrij(vrijX) : null;
     it.velden.forEach((f, k) => {
-      if (f.tpl || f.as){ f.ans.forEach((a, j) => getal(`a${k}_${j}`, a, f.invul && j === 0 ? 'Verkeerd getal ingevuld in de formule' : '')); return; }
+      if (f.tpl || f.as){ (vrijAns ? vrijAns[k] : f.ans).forEach((a, j) => getal(`a${k}_${j}`, a, f.invul && j === 0 && !vrijAns ? 'Verkeerd getal ingevuld in de formule' : '')); return; }
       if (f.soort === 'keuze'){ const raw = w['a' + k]; const ok = +raw === f.ans; if (+raw === 0) geenKeuze++; else leeg = false; if (!ok && !eerste && +raw !== 0) eerste = 'Verkeerde keuze gemaakt'; res.push(['a' + k, ok]); if (!ok) fout++; }
       else getal('a' + k, f.ans);
     });
