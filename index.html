@@ -676,6 +676,9 @@ const SECTIES = [
    hint: ['Opgebrand betekent: de lengte is 0 cm.', 'Waar raakt de grafiek de horizontale as?'], uitleg: ['Opgebrand: lengte = 0 cm.', 'De grafiek raakt de horizontale as bij 8 uur.', 'Na 8 uur is de kaars opgebrand.'], fouten: {32: 'Lengte bij het begin gegeven'}},
   {id: '7d', nr: '7', deel: 'd', ctx: 'c7', dom: D45, vraag: ['Laat met de formule zien dat de lengte dan 0 cm is.', 'Reken elke stap uit.'], type: 'stappen', begin: '32 − 4 × aantal uur = lengte',
    velden: [{tpl: '32 − 4 × {} = lengte', ans: [8], invul: true}, {tpl: '32 − {} = {}', ans: [32, 0]}, {tpl: 'Dus lengte = {} cm', ans: [0]}],
+   vrij: x => [[x], [4 * x, 32 - 4 * x], [32 - 4 * x]],
+   vrijUitleg: x => { const g = s => String(+s.toFixed(2)).replace('.', ',').replace('-', '−'); const l = 32 - 4 * x;
+     return [`Je hebt goed gerekend met ${g(x)} uur.`, `32 − 4 × ${g(x)} = ${g(l)}`, l === 0 ? 'De lengte is 0 cm. De kaars is opgebrand. Je antwoord bij c klopt!' : `De lengte is dan ${g(l)} cm, niet 0 cm.`, ...(l === 0 ? [] : ['Kijk nog eens naar je antwoord bij c.'])]; },
    hint: ['Vul je antwoord van c in.', '4 × 8 = …'], uitleg: ['32 − 4 × 8 = lengte', '4 × 8 = 32', '32 − 32 = 0', 'De lengte is 0 cm. Het klopt!']},
   {id: '8a1', nr: '8', deel: 'a ①', ctx: 'c8', dom: D42, vraag: ['Vul de tabel in bij vijver ①.', 'F:aantal uren × 10 + 20 = hoogte'], type: 'tabel', kop: ['aantal uren', 'hoogte in cm'], xs: [0, 1, 2, 3, 4, 5, 6, 7, 8], ans: [20, 30, 40, 50, 60, 70, 80, 90, 100],
    hint: ['Vul 0 in: 0 × 10 + 20 = …', 'Elk uur komt er 10 cm bij.'], uitleg: ['0 uur: 0 × 10 + 20 = 20', '1 uur: 1 × 10 + 20 = 30', 'Elk uur 10 erbij: 40, 50, 60, 70, 80, 90, 100']},
